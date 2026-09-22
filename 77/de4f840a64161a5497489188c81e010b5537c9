@@ -1,0 +1,21 @@
+.env.production
+  s_c2ca996cae1f5e::t_994bebe25cca9b 19-23
+  s_c2ca996cae1f5e::t_a7a818004c712e 3-5
+  s_c2ca996cae1f5e::t_5b09270d869dc3 15-17
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "77de4f840a64161a5497489188c81e010b5537c9",
+  "prompts": {},
+  "sessions": {
+    "s_c2ca996cae1f5e": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "75a10056-1bc8-4440-8bfa-c39cd73655c7",
+        "model": "claude-opus-5"
+      },
+      "human_author": "VaultTec-Dev <vaulttec-dev@proton.me>"
+    }
+  }
+}
