@@ -47,9 +47,13 @@ export const AccountMenuItems = () => {
           </div>
         </MainMenu.ItemCustom>
       )}
-      <MainMenu.ItemLink icon={logoutIcon} href={LOGOUT_URL}>
+      {/* Not an ItemLink: those always open in a new tab. */}
+      <MainMenu.Item
+        icon={logoutIcon}
+        onSelect={() => window.location.assign(LOGOUT_URL)}
+      >
         Вийти
-      </MainMenu.ItemLink>
+      </MainMenu.Item>
     </>
   );
 };
