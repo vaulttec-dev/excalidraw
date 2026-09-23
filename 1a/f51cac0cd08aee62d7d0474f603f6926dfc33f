@@ -1,0 +1,55 @@
+excalidraw-app/collab/Collab.tsx
+  s_c2ca996cae1f5e::t_c6d6ef7304ce0e 929-931,934,938-939
+  s_c2ca996cae1f5e::t_7d90447d797c1b 897-904
+  s_c2ca996cae1f5e::t_89c5182e9d97fb 94
+  s_c2ca996cae1f5e::t_231a89c057c2c3 940
+excalidraw-app/selfhost/BoardsPanel.scss
+  s_c2ca996cae1f5e::t_765ccf64913d89 228-347
+excalidraw-app/selfhost/BoardsPanel.tsx
+  s_c2ca996cae1f5e::t_207c0463c70b19 113
+  s_c2ca996cae1f5e::t_14596fdb00efd8 13,16,18,23,25,30-35,39-57
+  s_c2ca996cae1f5e::t_81ae444ee12924 552-679,687-695,697-764,767,771-780,783-801
+  s_c2ca996cae1f5e::t_ba00f8dfb32714 341-346
+  s_c2ca996cae1f5e::t_9de2914297e22d 90,96
+  s_c2ca996cae1f5e::t_386a15aaf29504 819-830,833-845
+  s_c2ca996cae1f5e::t_262121f0d61f0f 680-686
+  s_c2ca996cae1f5e::t_bad692c44726b5 696
+  s_c2ca996cae1f5e::t_0735ad12b89e8c 419,428-431,433,438-521
+  s_c2ca996cae1f5e::t_1aa23bc4bc28d5 314,317-319,321-322,325-327
+  s_c2ca996cae1f5e::t_40d1626c604890 360-407
+  s_ac72363243c71c::t_0ed7344ec14b79 522
+excalidraw-app/selfhost/api.ts
+  s_c2ca996cae1f5e::t_a6916e8c1017ea 29,82-106
+  s_c2ca996cae1f5e::t_353404d4928466 18-19,24-28
+  s_ac72363243c71c::t_907a51970fa6dc 30
+excalidraw-app/selfhost/icons.tsx
+  s_c2ca996cae1f5e::t_b80efe87353f28 34-65
+excalidraw-app/selfhost/identity.ts
+  s_c2ca996cae1f5e::t_a7112a6fa48ddf 15-54
+  s_c2ca996cae1f5e::t_5631abc6738fa9 11-12
+  s_c2ca996cae1f5e::t_550fdee45327f2 55
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "1af51cac0cd08aee62d7d0474f603f6926dfc33f",
+  "prompts": {},
+  "sessions": {
+    "s_ac72363243c71c": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "2c20d795-8c53-44a8-88d1-c03882b69aee",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "VaultTec-Dev <vaulttec-dev@proton.me>"
+    },
+    "s_c2ca996cae1f5e": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "75a10056-1bc8-4440-8bfa-c39cd73655c7",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "VaultTec-Dev <vaulttec-dev@proton.me>"
+    }
+  }
+}
