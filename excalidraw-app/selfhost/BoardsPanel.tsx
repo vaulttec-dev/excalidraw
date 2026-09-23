@@ -138,12 +138,20 @@ export const BoardsPanel = () => {
     }
   };
 
-  const create = (name: string) =>
+  const [creatingBusy, setCreatingBusy] = useState(false);
+
+  const create = (name: string) => {
+    // A second submit while the first is under way would make a second board.
+    if (creatingBusy) {
+      return;
+    }
+    setCreatingBusy(true);
     run(async () => {
       const room = generateRoom();
       await saveBoard(room.id, room.key, name);
-      openBoard(room);
-    });
+      await openBoard(room);
+    }).finally(() => setCreatingBusy(false));
+  };
 
   const rename = (board: Board, name: string) =>
     run(async () => {

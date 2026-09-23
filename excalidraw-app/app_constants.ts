@@ -4,6 +4,11 @@ export const INITIAL_SCENE_UPDATE_TIMEOUT = 5000;
 export const FILE_UPLOAD_TIMEOUT = 300;
 export const LOAD_IMAGES_TIMEOUT = 500;
 export const SYNC_FULL_SCENE_INTERVAL_MS = 20000;
+// Upstream saves a room once per SYNC_FULL_SCENE_INTERVAL_MS because every save
+// is a billed Firestore write. On the self-hosted backend a save is one object
+// write, and a 20 s gap lost whatever was drawn in it when the tab was closed or
+// switched to another board.
+export const SAVE_ROOM_INTERVAL_MS = 2000;
 export const SYNC_BROWSER_TABS_TIMEOUT = 50;
 export const CURSOR_SYNC_TIMEOUT = 33; // ~30fps
 export const DELETED_ELEMENT_TIMEOUT = 24 * 60 * 60 * 1000; // 1 day

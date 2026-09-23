@@ -61,6 +61,7 @@ import {
   LOAD_IMAGES_TIMEOUT,
   WS_SUBTYPES,
   SYNC_FULL_SCENE_INTERVAL_MS,
+  SAVE_ROOM_INTERVAL_MS,
   WS_EVENTS,
 } from "../app_constants";
 import {
@@ -120,6 +121,7 @@ export interface CollabAPI {
   startCollaboration: CollabInstance["startCollaboration"];
   stopCollaboration: CollabInstance["stopCollaboration"];
   syncElements: CollabInstance["syncElements"];
+  flushSave: CollabInstance["flushSave"];
   fetchImageFilesFromFirebase: CollabInstance["fetchImageFilesFromFirebase"];
   setUsername: CollabInstance["setUsername"];
   getUsername: CollabInstance["getUsername"];
@@ -239,6 +241,7 @@ class Collab extends PureComponent<CollabProps, CollabState> {
       onPointerUpdate: this.onPointerUpdate,
       startCollaboration: this.startCollaboration,
       syncElements: this.syncElements,
+      flushSave: this.flushSave,
       fetchImageFilesFromFirebase: this.fetchImageFilesFromFirebase,
       stopCollaboration: this.stopCollaboration,
       setUsername: this.setUsername,
@@ -997,9 +1000,21 @@ class Collab extends PureComponent<CollabProps, CollabState> {
         );
       }
     },
-    SYNC_FULL_SCENE_INTERVAL_MS,
+    SAVE_ROOM_INTERVAL_MS,
     { leading: false },
   );
+
+  /** Saves the room now instead of on the next throttled tick. */
+  flushSave = async () => {
+    this.queueSaveToFirebase.cancel();
+    if (this.isCollaborating() && this.portal.socketInitialized) {
+      await this.saveCollabRoomToFirebase(
+        getSyncableElements(
+          this.excalidrawAPI.getSceneElementsIncludingDeleted(),
+        ),
+      );
+    }
+  };
 
   setUserToFollow = (userToFollow: UserToFollow | null) => {
     const prev = appJotaiStore.get(userToFollowAtom) ?? null;

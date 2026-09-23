@@ -1,3 +1,6 @@
+import { appJotaiStore } from "../app-jotai";
+import { collabAPIAtom } from "../collab/Collab";
+
 // Client for the self-hosted backend this build is deployed with: the signed-in
 // account and the team's shared board list. Upstream has no accounts and no
 // board list, so none of this exists in the editor itself; every board here is a
@@ -110,7 +113,13 @@ export const boardLink = (board: Pick<Board, "id" | "key">) =>
  * Switches the tab to another board. The editor joins a room once, when it
  * starts, and ignores later changes of the hash, so a reload is required.
  */
-export const openBoard = (board: Pick<Board, "id" | "key">) => {
+export const openBoard = async (board: Pick<Board, "id" | "key">) => {
+  // The editor saves the room on a timer; reloading before it fires would lose
+  // whatever was drawn since the last save.
+  try {
+    await appJotaiStore.get(collabAPIAtom)?.flushSave();
+  } catch {}
+
   const hash = `#room=${board.id},${board.key}`;
   try {
     localStorage.setItem(LAST_ROOM_KEY, hash);
