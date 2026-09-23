@@ -1,16 +1,19 @@
-import { loginIcon } from "@excalidraw/excalidraw/components/icons";
-import { POINTER_EVENTS } from "@excalidraw/common";
+import { DEFAULT_SIDEBAR, POINTER_EVENTS } from "@excalidraw/common";
+import { useExcalidrawAPI } from "@excalidraw/excalidraw";
 import { useI18n } from "@excalidraw/excalidraw/i18n";
 import { WelcomeScreen } from "@excalidraw/excalidraw/index";
 import React from "react";
 
 import { isExcalidrawPlusSignedUser } from "../app_constants";
+import { BOARDS_TAB } from "../selfhost/api";
+import { boardsIcon } from "../selfhost/icons";
 
 export const AppWelcomeScreen: React.FC<{
   onCollabDialogOpen: () => any;
   isCollabEnabled: boolean;
 }> = React.memo((props) => {
   const { t } = useI18n();
+  const excalidrawAPI = useExcalidrawAPI();
   let headingContent;
 
   if (isExcalidrawPlusSignedUser) {
@@ -33,13 +36,13 @@ export const AppWelcomeScreen: React.FC<{
         return bit;
       });
   } else {
+    // Upstream says drawings stay in the browser. On this deployment every
+    // board is a room the server keeps and the whole team can open.
     headingContent = (
       <>
-        {t("welcomeScreen.app.center_heading")}
+        Дошка зберігається на сервері
         <br />
-        {t("welcomeScreen.app.center_heading_line2")}
-        <br />
-        {t("welcomeScreen.app.center_heading_line3")}
+        і доступна всій команді.
       </>
     );
   }
@@ -64,17 +67,19 @@ export const AppWelcomeScreen: React.FC<{
               onSelect={() => props.onCollabDialogOpen()}
             />
           )}
-          {!isExcalidrawPlusSignedUser && (
-            <WelcomeScreen.Center.MenuItemLink
-              href={`${
-                import.meta.env.VITE_APP_PLUS_LP
-              }/plus?utm_source=excalidraw&utm_medium=app&utm_content=welcomeScreenGuest`}
-              shortcut={null}
-              icon={loginIcon}
-            >
-              {t("labels.signUp")}
-            </WelcomeScreen.Center.MenuItemLink>
-          )}
+          <WelcomeScreen.Center.MenuItem
+            onSelect={() =>
+              excalidrawAPI?.toggleSidebar({
+                name: DEFAULT_SIDEBAR.name,
+                tab: BOARDS_TAB,
+                force: true,
+              })
+            }
+            shortcut={null}
+            icon={boardsIcon}
+          >
+            Дошки команди
+          </WelcomeScreen.Center.MenuItem>
         </WelcomeScreen.Center.Menu>
       </WelcomeScreen.Center>
     </WelcomeScreen>
