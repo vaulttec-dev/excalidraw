@@ -881,16 +881,17 @@ class Collab extends PureComponent<CollabProps, CollabState> {
       new Map();
     for (const socketId of sockets) {
       const isCurrentUser = socketId === this.portal.socket?.id;
-      collaborators.set(
-        socketId,
-        Object.assign(
-          // we never receive our own broadcasts, so we need to seed
-          // our own collaborator entry with the local username
-          isCurrentUser ? { username: this.state.username } : {},
-          this.collaborators.get(socketId),
-          { isCurrentUser },
-        ),
+      const collaborator: Mutable<Collaborator> = Object.assign(
+        // we never receive our own broadcasts, so we need to seed
+        // our own collaborator entry with the local username
+        isCurrentUser ? { username: this.state.username } : {},
+        this.collaborators.get(socketId),
+        { isCurrentUser },
       );
+      if (!collaborator.avatarUrl) {
+        collaborator.avatarUrl = githubAvatarUrl(collaborator.username);
+      }
+      collaborators.set(socketId, collaborator);
     }
     this.collaborators = collaborators;
     this.excalidrawAPI.updateScene({ collaborators });
