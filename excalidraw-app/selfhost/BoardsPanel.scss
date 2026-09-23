@@ -134,9 +134,8 @@
   .selfhost-boards__name {
     font-weight: 600;
     max-width: 100%;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+    // Long names wrap instead of being cut, so the whole name is readable.
+    overflow-wrap: anywhere;
 
     &--untitled {
       font-weight: 500;
