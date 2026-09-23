@@ -150,6 +150,21 @@ export const openBoard = async (
     });
     excalidrawAPI.history.clear();
     window.location.hash = hash;
+
+    // The app records loading the next room as an undoable step, so an undo
+    // right after switching would wipe the board for everyone. The history is
+    // cleared again once the room has loaded.
+    const deadline = Date.now() + 15000;
+    while (Date.now() < deadline) {
+      await new Promise((resolve) => setTimeout(resolve, 100));
+      if (collabAPI.isCollaborating() && !excalidrawAPI.getAppState().isLoading) {
+        // The history entry is committed after the render that shows the
+        // scene, so give it a moment before clearing.
+        await new Promise((resolve) => setTimeout(resolve, 300));
+        excalidrawAPI.history.clear();
+        break;
+      }
+    }
     return;
   }
 
