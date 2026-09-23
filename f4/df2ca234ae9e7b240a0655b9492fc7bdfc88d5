@@ -1,0 +1,20 @@
+excalidraw-app/selfhost/api.ts
+  s_c2ca996cae1f5e::t_7d5f616bd9da7b 153-160,164-167
+  s_c2ca996cae1f5e::t_8427a5cd13eac2 161-163
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "f4df2ca234ae9e7b240a0655b9492fc7bdfc88d5",
+  "prompts": {},
+  "sessions": {
+    "s_c2ca996cae1f5e": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "75a10056-1bc8-4440-8bfa-c39cd73655c7",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "VaultTec-Dev <vaulttec-dev@proton.me>"
+    }
+  }
+}
