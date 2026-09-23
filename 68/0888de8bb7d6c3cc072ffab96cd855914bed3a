@@ -1,0 +1,25 @@
+excalidraw-app/App.tsx
+  s_c2ca996cae1f5e::t_b1aa4290a874dd 151
+  s_c2ca996cae1f5e::t_9a172c5fec80e6 411-415
+excalidraw-app/selfhost/identity.ts
+  s_c2ca996cae1f5e::t_d0ebd5f8cf9f7f 1-38
+excalidraw-app/collab/Collab.tsx
+  s_c2ca996cae1f5e::t_b3ba94b860d8d5 94
+  s_c2ca996cae1f5e::t_18184cf83bf983 916-918
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "680888de8bb7d6c3cc072ffab96cd855914bed3a",
+  "prompts": {},
+  "sessions": {
+    "s_c2ca996cae1f5e": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "75a10056-1bc8-4440-8bfa-c39cd73655c7",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "VaultTec-Dev <vaulttec-dev@proton.me>"
+    }
+  }
+}
