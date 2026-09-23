@@ -1,0 +1,36 @@
+excalidraw-app/selfhost/api.ts
+  s_c2ca996cae1f5e::t_62691f58031194 1-120
+excalidraw-app/selfhost/BoardsPanel.scss
+  s_c2ca996cae1f5e::t_3fc32435d0c233 1-177,195
+  s_c2ca996cae1f5e::t_2c93d0997ec94f 178-194
+excalidraw-app/selfhost/AccountMenu.tsx
+  s_c2ca996cae1f5e::t_69fe3840490301 17
+  s_c2ca996cae1f5e::t_86447d70f023d4 29-32
+  s_c2ca996cae1f5e::t_68573e57d7bea6 1,3-16,18-28,33-55
+  s_c2ca996cae1f5e::t_555df1298615f3 2
+excalidraw-app/components/AppMainMenu.tsx
+  s_c2ca996cae1f5e::t_91febcdccd5a38 1,10
+  s_c2ca996cae1f5e::t_ea617c90fdde79 38
+excalidraw-app/components/AppSidebar.tsx
+  s_c2ca996cae1f5e::t_b61e69ad4c15ff 1,4-6,8-10,12,18-20,22,25-26
+excalidraw-app/selfhost/icons.tsx
+  s_c2ca996cae1f5e::t_19de2e1f3541f3 1-33
+excalidraw-app/selfhost/BoardsPanel.tsx
+  s_c2ca996cae1f5e::t_c9b6b1f0c91efe 1-284
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "f7cd8dadf724dbb05e4c3bad714d953de8bab35a",
+  "prompts": {},
+  "sessions": {
+    "s_c2ca996cae1f5e": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "75a10056-1bc8-4440-8bfa-c39cd73655c7",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "VaultTec-Dev <vaulttec-dev@proton.me>"
+    }
+  }
+}
