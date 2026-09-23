@@ -4,6 +4,7 @@ import {
   TrashIcon,
   pencilIcon,
 } from "@excalidraw/excalidraw/components/icons";
+import { useExcalidrawAPI } from "@excalidraw/excalidraw";
 import clsx from "clsx";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 
@@ -101,8 +102,15 @@ export const BoardsPanel = () => {
   const [creating, setCreating] = useState(false);
   const [renaming, setRenaming] = useState<string | null>(null);
   const [copied, setCopied] = useState<string | null>(null);
+  const excalidrawAPI = useExcalidrawAPI();
 
-  const current = currentRoom();
+  // Boards switch without a reload, so the open board follows the hash.
+  const [current, setCurrent] = useState(currentRoom);
+  useEffect(() => {
+    const update = () => setCurrent(currentRoom());
+    window.addEventListener("hashchange", update);
+    return () => window.removeEventListener("hashchange", update);
+  }, []);
 
   const load = useCallback(async () => {
     try {
@@ -149,7 +157,9 @@ export const BoardsPanel = () => {
     run(async () => {
       const room = generateRoom();
       await saveBoard(room.id, room.key, name);
-      await openBoard(room);
+      await openBoard(room, excalidrawAPI);
+      setCreating(false);
+      await load();
     }).finally(() => setCreatingBusy(false));
   };
 
@@ -244,7 +254,9 @@ export const BoardsPanel = () => {
               <button
                 type="button"
                 className="selfhost-boards__open"
-                onClick={() => current?.id !== board.id && openBoard(board)}
+                onClick={() =>
+                  current?.id !== board.id && openBoard(board, excalidrawAPI)
+                }
                 title={current?.id === board.id ? "Відкрита зараз" : "Відкрити"}
               >
                 <span

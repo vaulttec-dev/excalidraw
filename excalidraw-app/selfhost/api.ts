@@ -1,5 +1,9 @@
+import { CaptureUpdateAction } from "@excalidraw/excalidraw";
+
 import { appJotaiStore } from "../app-jotai";
 import { collabAPIAtom } from "../collab/Collab";
+
+import type { ExcalidrawImperativeAPI } from "@excalidraw/excalidraw/types";
 
 // Client for the self-hosted backend this build is deployed with: the signed-in
 // account and the team's shared board list. Upstream has no accounts and no
@@ -110,20 +114,45 @@ export const boardLink = (board: Pick<Board, "id" | "key">) =>
   `${window.location.origin}/#room=${board.id},${board.key}`;
 
 /**
- * Switches the tab to another board. The editor joins a room once, when it
- * starts, and ignores later changes of the hash, so a reload is required.
+ * Switches the tab to another board without reloading the page.
+ *
+ * While a room is open the app ignores a new room in the hash, so the current
+ * room is left first; the app's own hashchange handler then joins the next one
+ * and loads its scene. If that path is not available the page is reloaded.
  */
-export const openBoard = async (board: Pick<Board, "id" | "key">) => {
-  // The editor saves the room on a timer; reloading before it fires would lose
-  // whatever was drawn since the last save.
-  try {
-    await appJotaiStore.get(collabAPIAtom)?.flushSave();
-  } catch {}
-
+export const openBoard = async (
+  board: Pick<Board, "id" | "key">,
+  excalidrawAPI?: ExcalidrawImperativeAPI | null,
+) => {
   const hash = `#room=${board.id},${board.key}`;
   try {
     localStorage.setItem(LAST_ROOM_KEY, hash);
   } catch {}
+
+  const collabAPI = appJotaiStore.get(collabAPIAtom);
+
+  // The room is saved on a timer; leaving before it fires would lose whatever
+  // was drawn since the last save. Saving first also leaves nothing new for the
+  // save stopCollaboration makes on its way out, which could otherwise finish
+  // after the next room is open and bring this board's elements into it.
+  try {
+    await collabAPI?.flushSave();
+  } catch {}
+
+  if (collabAPI?.isCollaborating() && excalidrawAPI) {
+    collabAPI.stopCollaboration(false);
+    // The next room is reconciled against whatever is on the canvas, so the
+    // canvas is emptied first, along with an undo history that would bring
+    // this board's elements back into the next one.
+    excalidrawAPI.updateScene({
+      elements: [],
+      captureUpdate: CaptureUpdateAction.NEVER,
+    });
+    excalidrawAPI.history.clear();
+    window.location.hash = hash;
+    return;
+  }
+
   window.location.hash = hash;
   window.location.reload();
 };
