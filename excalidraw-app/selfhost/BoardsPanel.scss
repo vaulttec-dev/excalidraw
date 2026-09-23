@@ -1,16 +1,17 @@
 .excalidraw {
   // The sidebar's tab panels grow with their content and the sidebar clips
-  // them; letting this one shrink is what gives the list a scrollbar.
-  .sidebar-tabs-root:has(.selfhost-boards-tab[data-state="active"]),
+  // them. Taking the panel out of the flow makes the tab only as tall as the
+  // space left in the sidebar, so the list below gets a scrollbar.
   .selfhost-boards-tab {
+    position: relative;
     min-height: 0;
   }
 
   .selfhost-boards {
+    position: absolute;
+    inset: 0;
     display: flex;
     flex-direction: column;
-    min-height: 0;
-    flex: 1 1 auto;
 
     button {
       font: inherit;
