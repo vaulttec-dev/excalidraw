@@ -70,6 +70,41 @@ export const saveBoard = async (id: string, key: string, name?: string) => {
   });
 };
 
+export type Version = { id: string; at: string };
+
+export type TrashedBoard = {
+  id: string;
+  name: string;
+  createdBy: string;
+  deletedBy: string;
+  deletedAt: string;
+};
+
+/** Stored versions of a board, newest first. */
+export const fetchVersions = async (id: string): Promise<Version[]> => {
+  const response = await request("GET", `/api/boards/${id}/versions`);
+  return (await response.json()) ?? [];
+};
+
+/**
+ * Makes a stored version the board's content. The server keeps the content it
+ * replaces as a version too, and sends the change to open tabs live.
+ */
+export const restoreVersion = async (id: string, version: string) => {
+  await request("POST", `/api/boards/${id}/versions/${version}/restore`);
+};
+
+export const fetchTrash = async (): Promise<TrashedBoard[]> => {
+  const response = await request("GET", "/api/boards/trash");
+  return (await response.json()) ?? [];
+};
+
+export const restoreFromTrash = async (id: string): Promise<Board> => {
+  const response = await request("POST", `/api/boards/trash/${id}/restore`);
+  return response.json();
+};
+
+/** Moves a board to the trash, from where it can be restored. */
 export const deleteBoard = async (id: string) => {
   await request("DELETE", `/api/boards/${id}`);
   if (currentRoom()?.id === id || rememberedRoom()?.id === id) {

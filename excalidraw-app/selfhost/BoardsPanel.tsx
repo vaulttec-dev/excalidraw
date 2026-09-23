@@ -13,14 +13,26 @@ import {
   currentRoom,
   deleteBoard,
   fetchBoards,
+  fetchTrash,
+  fetchVersions,
   generateRoom,
   openBoard,
+  restoreFromTrash,
+  restoreVersion,
   saveBoard,
 } from "./api";
+import { historyIcon } from "./icons";
 
 import "./BoardsPanel.scss";
 
-import type { Board } from "./api";
+import type { Board, TrashedBoard, Version } from "./api";
+
+const dateTime = new Intl.DateTimeFormat("uk", {
+  day: "numeric",
+  month: "short",
+  hour: "2-digit",
+  minute: "2-digit",
+});
 
 const relativeTime = new Intl.RelativeTimeFormat("uk", { numeric: "auto" });
 
@@ -91,6 +103,148 @@ const NameForm = ({
 };
 
 /**
+ * A board's stored versions. The server keeps one at most every ten minutes
+ * while the board is edited, and before anything that throws content away.
+ */
+const Versions = ({
+  board,
+  onError,
+}: {
+  board: Board;
+  onError: (message: string) => void;
+}) => {
+  const [versions, setVersions] = useState<Version[] | null>(null);
+  const [busy, setBusy] = useState<string | null>(null);
+
+  const load = useCallback(
+    () =>
+      fetchVersions(board.id).then(setVersions, (err) => onError(err.message)),
+    [board.id, onError],
+  );
+
+  useEffect(() => {
+    load();
+  }, [load]);
+
+  const restore = async (version: Version) => {
+    const label = board.name || "Без назви";
+    const when = dateTime.format(new Date(version.at));
+    if (
+      !window.confirm(
+        `Повернути дошку «${label}» до стану на ${when}? Поточний стан теж збережеться як версія, тож це можна буде скасувати.`,
+      )
+    ) {
+      return;
+    }
+    setBusy(version.id);
+    try {
+      await restoreVersion(board.id, version.id);
+      await load();
+    } catch (err: any) {
+      onError(err.message);
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  if (versions === null) {
+    return <div className="selfhost-boards__versions-empty">Завантаження…</div>;
+  }
+  if (versions.length === 0) {
+    return (
+      <div className="selfhost-boards__versions-empty">
+        Версій ще немає — вони з'являються, коли дошку редагують.
+      </div>
+    );
+  }
+  return (
+    <ul className="selfhost-boards__versions">
+      {versions.map((version) => (
+        <li key={version.id}>
+          <span>
+            {dateTime.format(new Date(version.at))}
+            <span className="selfhost-boards__meta"> · {ago(version.at)}</span>
+          </span>
+          <button
+            type="button"
+            disabled={busy !== null}
+            onClick={() => restore(version)}
+          >
+            {busy === version.id ? "…" : "Відновити"}
+          </button>
+        </li>
+      ))}
+    </ul>
+  );
+};
+
+/** Deleted boards, which can be brought back with their last content. */
+const Trash = ({
+  onRestored,
+  onError,
+}: {
+  onRestored: () => void;
+  onError: (message: string) => void;
+}) => {
+  const [open, setOpen] = useState(false);
+  const [items, setItems] = useState<TrashedBoard[] | null>(null);
+
+  const load = useCallback(
+    () => fetchTrash().then(setItems, (err) => onError(err.message)),
+    [onError],
+  );
+
+  useEffect(() => {
+    if (open) {
+      load();
+    }
+  }, [open, load]);
+
+  const restore = async (item: TrashedBoard) => {
+    try {
+      await restoreFromTrash(item.id);
+      await load();
+      onRestored();
+    } catch (err: any) {
+      onError(err.message);
+    }
+  };
+
+  return (
+    <div className="selfhost-boards__trash">
+      <button
+        type="button"
+        className="selfhost-boards__trash-toggle"
+        onClick={() => setOpen(!open)}
+      >
+        {open ? "▾" : "▸"} Кошик
+      </button>
+      {open && items !== null && items.length === 0 && (
+        <div className="selfhost-boards__versions-empty">Кошик порожній.</div>
+      )}
+      {open && items !== null && items.length > 0 && (
+        <ul className="selfhost-boards__versions">
+          {items.map((item) => (
+            <li key={item.id}>
+              <span>
+                {item.name || "Без назви"}
+                <span className="selfhost-boards__meta">
+                  {" "}
+                  · видалив(ла) {item.deletedBy || "—"} {ago(item.deletedAt)}
+                </span>
+              </span>
+              <button type="button" onClick={() => restore(item)}>
+                Відновити
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+};
+
+/**
  * The team's boards, shown as a tab of the editor's sidebar. Every board is a
  * collaboration room kept by the backend, so anyone signed in sees the same list
  * and edits the same boards.
@@ -102,7 +256,9 @@ export const BoardsPanel = () => {
   const [creating, setCreating] = useState(false);
   const [renaming, setRenaming] = useState<string | null>(null);
   const [copied, setCopied] = useState<string | null>(null);
+  const [historyOf, setHistoryOf] = useState<string | null>(null);
   const excalidrawAPI = useExcalidrawAPI();
+  const showError = useCallback((message: string) => setError(message), []);
 
   // Boards switch without a reload, so the open board follows the hash.
   const [current, setCurrent] = useState(currentRoom);
@@ -174,7 +330,7 @@ export const BoardsPanel = () => {
     const label = board.name || "Без назви";
     if (
       !window.confirm(
-        `Видалити дошку «${label}» разом із вмістом для всієї команди?`,
+        `Перемістити дошку «${label}» у кошик? Для команди вона зникне зі списку, але її можна буде відновити з кошика.`,
       )
     ) {
       return;
@@ -288,17 +444,34 @@ export const BoardsPanel = () => {
                 </button>
                 <button
                   type="button"
-                  title="Видалити"
+                  title="Історія версій"
+                  className={clsx({
+                    "selfhost-boards__active": historyOf === board.id,
+                  })}
+                  onClick={() =>
+                    setHistoryOf(historyOf === board.id ? null : board.id)
+                  }
+                >
+                  {historyIcon}
+                </button>
+                <button
+                  type="button"
+                  title="У кошик"
                   className="selfhost-boards__danger"
                   onClick={() => remove(board)}
                 >
                   {TrashIcon}
                 </button>
               </div>
+              {historyOf === board.id && (
+                <Versions board={board} onError={showError} />
+              )}
             </li>
           ),
         )}
       </ul>
+
+      <Trash onRestored={load} onError={showError} />
     </div>
   );
 };

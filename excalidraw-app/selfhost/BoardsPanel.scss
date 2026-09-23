@@ -176,6 +176,56 @@
     color: var(--color-danger);
   }
 
+  .selfhost-boards__item {
+    flex-wrap: wrap;
+  }
+
+  .selfhost-boards .selfhost-boards__active {
+    color: var(--color-primary);
+  }
+
+  .selfhost-boards__versions {
+    list-style: none;
+    margin: 0.25rem 0 0.25rem 0.5rem;
+    padding: 0;
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    font-size: 0.8125rem;
+
+    li {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.5rem;
+    }
+  }
+
+  .selfhost-boards .selfhost-boards__versions button {
+    padding: 0.25rem 0.5rem;
+    font-size: 0.75rem;
+  }
+
+  .selfhost-boards__versions-empty {
+    width: 100%;
+    color: var(--color-gray-50);
+    font-size: 0.8125rem;
+    padding: 0.25rem 0.5rem;
+  }
+
+  .selfhost-boards__trash {
+    margin-top: 0.5rem;
+    border-top: 1px solid var(--default-border-color);
+    padding-top: 0.5rem;
+  }
+
+  .selfhost-boards .selfhost-boards__trash-toggle {
+    border: 0;
+    padding: 0.25rem 0;
+    color: var(--color-gray-60);
+  }
+
   .selfhost-account {
     display: flex;
     align-items: center;
