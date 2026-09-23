@@ -1,0 +1,19 @@
+excalidraw-app/collab/Collab.tsx
+  s_c2ca996cae1f5e::t_e9e487859679bf 884-889,891-894
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "a16cbb2aeddc50d773e958907c842924eb69d5bf",
+  "prompts": {},
+  "sessions": {
+    "s_c2ca996cae1f5e": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "75a10056-1bc8-4440-8bfa-c39cd73655c7",
+        "model": "unknown"
+      },
+      "human_author": "VaultTec-Dev <vaulttec-dev@proton.me>"
+    }
+  }
+}
