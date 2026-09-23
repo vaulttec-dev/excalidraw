@@ -1,12 +1,16 @@
 .excalidraw {
+  // The sidebar's tab panels grow with their content and the sidebar clips
+  // them; letting this one shrink is what gives the list a scrollbar.
+  .sidebar-tabs-root:has(.selfhost-boards-tab[data-state="active"]),
+  .selfhost-boards-tab {
+    min-height: 0;
+  }
+
   .selfhost-boards {
     display: flex;
     flex-direction: column;
-    gap: 0.5rem;
-    padding: 0.75rem;
     min-height: 0;
     flex: 1 1 auto;
-    overflow-y: auto;
 
     button {
       font: inherit;
@@ -37,6 +41,34 @@
         outline-offset: -1px;
       }
     }
+  }
+
+  // Creating and searching stay in view; the lists below them scroll.
+  .selfhost-boards__top {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    padding: 0 0.75rem 0.5rem;
+    flex-shrink: 0;
+  }
+
+  .selfhost-boards__scroll {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    padding: 0 0.75rem 0.75rem;
+  }
+
+  .selfhost-boards .selfhost-boards__more {
+    align-self: flex-start;
+    border: 0;
+    padding: 0.25rem 0.5rem;
+    color: var(--color-primary);
+    font-size: 0.8125rem;
   }
 
   .selfhost-boards__primary {
@@ -95,28 +127,35 @@
     gap: 0.25rem;
   }
 
+  // A row's actions float over its end on hover instead of taking a column,
+  // so names get the full width of the panel.
   .selfhost-boards__item {
+    --row-bg: var(--sidebar-bg-color, var(--island-bg-color));
+    position: relative;
     display: flex;
     align-items: center;
-    gap: 0.25rem;
+    flex-wrap: wrap;
     border-radius: var(--border-radius-lg);
-    padding: 0.25rem;
+    padding: 0.125rem;
+    background: var(--row-bg);
 
-    &:hover {
-      background: var(--button-hover-bg);
+    &:hover,
+    &:focus-within {
+      --row-bg: var(--button-hover-bg);
 
-      .selfhost-boards__actions {
+      > .selfhost-boards__actions {
         opacity: 1;
+        pointer-events: auto;
       }
     }
 
     &--current {
-      background: var(--color-surface-primary-container);
+      --row-bg: var(--color-surface-primary-container);
     }
   }
 
   .selfhost-boards .selfhost-boards__open {
-    flex: 1;
+    flex: 1 1 100%;
     min-width: 0;
     display: flex;
     flex-direction: column;
@@ -134,8 +173,10 @@
   .selfhost-boards__name {
     font-weight: 600;
     max-width: 100%;
-    // Long names wrap instead of being cut, so the whole name is readable.
-    overflow-wrap: anywhere;
+    // Long names wrap instead of being cut, so the whole name is readable;
+    // words break only when one alone is wider than the panel.
+    overflow-wrap: break-word;
+    line-height: 1.3;
 
     &--untitled {
       font-weight: 500;
@@ -150,13 +191,26 @@
   }
 
   .selfhost-boards__actions {
+    position: absolute;
+    top: 0.25rem;
+    right: 0.25rem;
     display: flex;
     gap: 0.125rem;
+    padding-left: 0.75rem;
+    border-radius: var(--border-radius-md);
+    // Fades the name out under the buttons rather than cutting it.
+    background: linear-gradient(to right, transparent, var(--row-bg) 0.75rem);
     opacity: 0;
+    pointer-events: none;
     transition: opacity 0.1s;
 
+    // Without hover the actions sit on a line of their own.
     @media (hover: none) {
+      position: static;
       opacity: 1;
+      pointer-events: auto;
+      margin-left: auto;
+      background: none;
     }
   }
 
@@ -175,9 +229,6 @@
     color: var(--color-danger);
   }
 
-  .selfhost-boards__item {
-    flex-wrap: wrap;
-  }
 
   .selfhost-boards .selfhost-boards__active {
     color: var(--color-primary);
@@ -250,17 +301,22 @@
   }
 
   .selfhost-boards__folder-head {
+    --row-bg: var(--sidebar-bg-color, var(--island-bg-color));
+    position: relative;
     display: flex;
     align-items: center;
-    gap: 0.25rem;
+    flex-wrap: wrap;
     border-radius: var(--border-radius-lg);
-    padding: 0.125rem 0.25rem;
+    padding: 0.125rem;
+    background: var(--row-bg);
 
-    &:hover {
-      background: var(--button-hover-bg);
+    &:hover,
+    &:focus-within {
+      --row-bg: var(--button-hover-bg);
 
-      .selfhost-boards__actions {
+      > .selfhost-boards__actions {
         opacity: 1;
+        pointer-events: auto;
       }
     }
   }

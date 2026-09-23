@@ -22,7 +22,7 @@ export const AppSidebar = () => {
           {boardsIcon}
         </Sidebar.TabTrigger>
       </DefaultSidebar.TabTriggers>
-      <Sidebar.Tab tab={BOARDS_TAB}>
+      <Sidebar.Tab tab={BOARDS_TAB} className="selfhost-boards-tab">
         <BoardsPanel />
       </Sidebar.Tab>
     </DefaultSidebar>

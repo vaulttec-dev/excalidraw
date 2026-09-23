@@ -6,7 +6,13 @@ import {
 } from "@excalidraw/excalidraw/components/icons";
 import { useExcalidrawAPI } from "@excalidraw/excalidraw";
 import clsx from "clsx";
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 
 import {
   boardLink,
@@ -37,6 +43,12 @@ import {
 import "./BoardsPanel.scss";
 
 import type { Board, Folder, TrashedBoard, Version } from "./api";
+
+/** Boards shown per list before "Показати ще". */
+const PAGE_SIZE = 25;
+
+/** The list is read again when the tab comes back, at most this often. */
+const REFRESH_AFTER_MS = 15_000;
 
 // Which folders this viewer has collapsed; a convenience kept per browser.
 const COLLAPSED_KEY = "excalidraw-self-host-collapsed-folders";
@@ -336,7 +348,9 @@ export const BoardsPanel = () => {
     return () => window.removeEventListener("hashchange", update);
   }, []);
 
+  const lastLoad = useRef(0);
   const load = useCallback(async () => {
+    lastLoad.current = Date.now();
     try {
       const [nextBoards, nextFolders] = await Promise.all([
         fetchBoards(),
@@ -352,12 +366,46 @@ export const BoardsPanel = () => {
 
   useEffect(() => {
     load();
-    // Teammates add boards too; pick them up when the tab gets focus back.
-    window.addEventListener("focus", load);
-    return () => window.removeEventListener("focus", load);
+    // Teammates add boards too; pick them up when the tab comes back into
+    // view, but not on every focus change between the canvas and the panel.
+    const refresh = () => {
+      if (
+        document.visibilityState === "visible" &&
+        Date.now() - lastLoad.current > REFRESH_AFTER_MS
+      ) {
+        load();
+      }
+    };
+    window.addEventListener("focus", refresh);
+    document.addEventListener("visibilitychange", refresh);
+    return () => {
+      window.removeEventListener("focus", refresh);
+      document.removeEventListener("visibilitychange", refresh);
+    };
   }, [load]);
 
   const needle = query.trim().toLowerCase();
+
+  // Showing only the first page of each list keeps the panel light with many
+  // boards; "Показати ще" grows it. A new search starts from the first page.
+  const [limits, setLimits] = useState<Record<string, number>>({});
+  useEffect(() => setLimits({}), [needle]);
+  const page = (key: string, list: Board[]) =>
+    list.slice(0, limits[key] ?? PAGE_SIZE);
+  const showMore = (key: string, total: number) => (
+    <button
+      type="button"
+      className="selfhost-boards__more"
+      onClick={() =>
+        setLimits((current) => ({
+          ...current,
+          [key]: (current[key] ?? PAGE_SIZE) + PAGE_SIZE,
+        }))
+      }
+    >
+      Показати ще ({total - (limits[key] ?? PAGE_SIZE)})
+    </button>
+  );
 
   const shown = useMemo(
     () =>
@@ -370,6 +418,17 @@ export const BoardsPanel = () => {
     [boards, needle],
   );
 
+  // Boards in each folder, counted over all boards rather than the matches.
+  const folderCounts = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const board of boards ?? []) {
+      if (board.folder) {
+        counts.set(board.folder, (counts.get(board.folder) ?? 0) + 1);
+      }
+    }
+    return counts;
+  }, [boards]);
+
   // Boards by folder id; "" holds the ones outside any folder, including any
   // whose folder is gone.
   const byFolder = useMemo(() => {
@@ -377,17 +436,26 @@ export const BoardsPanel = () => {
     const groups = new Map<string, Board[]>();
     for (const board of shown) {
       const key = board.folder && known.has(board.folder) ? board.folder : "";
-      groups.set(key, [...(groups.get(key) ?? []), board]);
+      const group = groups.get(key);
+      if (group) {
+        group.push(board);
+      } else {
+        groups.set(key, [board]);
+      }
     }
     return groups;
   }, [shown, folders]);
 
   // While searching, only folders with matches — or a matching name — show.
-  const shownFolders = folders.filter(
-    (folder) =>
-      !needle ||
-      byFolder.has(folder.id) ||
-      folder.name.toLowerCase().includes(needle),
+  const shownFolders = useMemo(
+    () =>
+      folders.filter(
+        (folder) =>
+          !needle ||
+          byFolder.has(folder.id) ||
+          folder.name.toLowerCase().includes(needle),
+      ),
+    [folders, byFolder, needle],
   );
   const loose = byFolder.get("") ?? [];
 
@@ -458,7 +526,7 @@ export const BoardsPanel = () => {
   };
 
   const removeFolder = (folder: Folder) => {
-    const count = (boards ?? []).filter((b) => b.folder === folder.id).length;
+    const count = folderCounts.get(folder.id) ?? 0;
     if (
       !window.confirm(
         count
@@ -708,7 +776,7 @@ export const BoardsPanel = () => {
                 {folder.name}
               </span>
               <span className="selfhost-boards__meta">
-                {(boards ?? []).filter((b) => b.folder === folder.id).length}
+                {folderCounts.get(folder.id) ?? 0}
               </span>
             </button>
             <div className="selfhost-boards__actions">
@@ -750,7 +818,10 @@ export const BoardsPanel = () => {
         )}
         {open && (
           <ul className="selfhost-boards__list selfhost-boards__folder-boards">
-            {items.map(renderBoard)}
+            {page(folder.id, items).map(renderBoard)}
+            {items.length > (limits[folder.id] ?? PAGE_SIZE) && (
+              <li>{showMore(folder.id, items.length)}</li>
+            )}
             {items.length === 0 && !needle && (
               <li className="selfhost-boards__folder-empty">
                 Порожньо — перетягніть сюди дошку.
@@ -764,89 +835,98 @@ export const BoardsPanel = () => {
 
   return (
     <div className="selfhost-boards">
-      {creating === "" ? (
-        <NameForm
-          initial=""
-          submitLabel="Створити"
-          onSubmit={(name) => create(name, "")}
-          onCancel={() => setCreating(null)}
-        />
-      ) : creatingFolder ? (
-        <NameForm
-          initial=""
-          submitLabel="Створити"
-          placeholder="Назва папки"
-          onSubmit={addFolder}
-          onCancel={() => setCreatingFolder(false)}
-        />
-      ) : (
-        <div className="selfhost-boards__toolbar">
-          <button
-            type="button"
-            className="selfhost-boards__primary selfhost-boards__new"
-            onClick={() => setCreating("")}
-          >
-            {PlusIcon}
-            Нова дошка
-          </button>
-          <button
-            type="button"
-            className="selfhost-boards__new-folder"
-            title="Нова папка"
-            aria-label="Нова папка"
-            onClick={() => setCreatingFolder(true)}
-          >
-            {folderPlusIcon}
-          </button>
-        </div>
-      )}
-
-      <input
-        type="search"
-        className="selfhost-boards__search"
-        placeholder="Пошук за назвою або автором"
-        value={query}
-        onChange={(event) => setQuery(event.target.value)}
-        onKeyDown={(event) => event.stopPropagation()}
-      />
-
-      {error && <div className="selfhost-boards__error">Помилка: {error}</div>}
-
-      {boards === null && !error && (
-        <div className="selfhost-boards__empty">Завантаження…</div>
-      )}
-
-      {boards !== null &&
-        shown.length === 0 &&
-        (folders.length === 0 || needle) && (
-          <div className="selfhost-boards__empty">
-            {boards.length ? "Нічого не знайдено." : "Дошок ще немає."}
+      <div className="selfhost-boards__top">
+        {creating === "" ? (
+          <NameForm
+            initial=""
+            submitLabel="Створити"
+            onSubmit={(name) => create(name, "")}
+            onCancel={() => setCreating(null)}
+          />
+        ) : creatingFolder ? (
+          <NameForm
+            initial=""
+            submitLabel="Створити"
+            placeholder="Назва папки"
+            onSubmit={addFolder}
+            onCancel={() => setCreatingFolder(false)}
+          />
+        ) : (
+          <div className="selfhost-boards__toolbar">
+            <button
+              type="button"
+              className="selfhost-boards__primary selfhost-boards__new"
+              onClick={() => setCreating("")}
+            >
+              {PlusIcon}
+              Нова дошка
+            </button>
+            <button
+              type="button"
+              className="selfhost-boards__new-folder"
+              title="Нова папка"
+              aria-label="Нова папка"
+              onClick={() => setCreatingFolder(true)}
+            >
+              {folderPlusIcon}
+            </button>
           </div>
         )}
 
-      {shownFolders.length > 0 && (
-        <ul className="selfhost-boards__list">
-          {shownFolders.map(renderFolder)}
-        </ul>
-      )}
+        <input
+          type="search"
+          className="selfhost-boards__search"
+          placeholder="Пошук за назвою або автором"
+          value={query}
+          onChange={(event) => setQuery(event.target.value)}
+          onKeyDown={(event) => event.stopPropagation()}
+        />
 
-      <ul
-        className={clsx("selfhost-boards__list selfhost-boards__loose", {
-          "selfhost-boards__drop": dropTarget === "",
-          // Room to drop a board out of its folder when nothing is loose.
-          "selfhost-boards__loose--target": !!dragging && loose.length === 0,
-        })}
-        {...dropZone("")}
-      >
-        {loose.map(renderBoard)}
-        {!!dragging && loose.length === 0 && (
-          <li className="selfhost-boards__folder-empty">
-            Перетягніть сюди, щоб винести з папки.
-          </li>
+        {error && (
+          <div className="selfhost-boards__error">Помилка: {error}</div>
         )}
-      </ul>
+      </div>
 
-      <Trash onRestored={load} onError={showError} />
+      <div className="selfhost-boards__scroll">
+        {boards === null && !error && (
+          <div className="selfhost-boards__empty">Завантаження…</div>
+        )}
+
+        {boards !== null &&
+          shown.length === 0 &&
+          (folders.length === 0 || needle) && (
+            <div className="selfhost-boards__empty">
+              {boards.length ? "Нічого не знайдено." : "Дошок ще немає."}
+            </div>
+          )}
+
+        {shownFolders.length > 0 && (
+          <ul className="selfhost-boards__list">
+            {shownFolders.map(renderFolder)}
+          </ul>
+        )}
+
+        <ul
+          className={clsx("selfhost-boards__list selfhost-boards__loose", {
+            "selfhost-boards__drop": dropTarget === "",
+            // Room to drop a board out of its folder when nothing is loose.
+            "selfhost-boards__loose--target": !!dragging && loose.length === 0,
+          })}
+          {...dropZone("")}
+        >
+          {page("", loose).map(renderBoard)}
+          {loose.length > (limits[""] ?? PAGE_SIZE) && (
+            <li>{showMore("", loose.length)}</li>
+          )}
+          {!!dragging && loose.length === 0 && (
+            <li className="selfhost-boards__folder-empty">
+              Перетягніть сюди, щоб винести з папки.
+            </li>
+          )}
+        </ul>
+
+        <Trash onRestored={load} onError={showError} />
+      </div>
     </div>
   );
 };
