@@ -1,0 +1,21 @@
+excalidraw-app/App.tsx
+  s_c2ca996cae1f5e::t_a55733458c778f 906-908
+excalidraw-app/selfhost/BoardsPanel.scss
+  s_c2ca996cae1f5e::t_650a37a78e65b0 3-4,6,11-12
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "df504981d1da9fcbcc668e7e86e683e6a7b47197",
+  "prompts": {},
+  "sessions": {
+    "s_c2ca996cae1f5e": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "75a10056-1bc8-4440-8bfa-c39cd73655c7",
+        "model": "unknown"
+      },
+      "human_author": "VaultTec-Dev <vaulttec-dev@proton.me>"
+    }
+  }
+}
