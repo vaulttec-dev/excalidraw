@@ -1,0 +1,19 @@
+excalidraw-app/selfhost/AccountMenu.tsx
+  s_c2ca996cae1f5e::t_1c7e7589319269 50-54,56
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "e61c6397d5a2615be89d494deb51f98c45e743b9",
+  "prompts": {},
+  "sessions": {
+    "s_c2ca996cae1f5e": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "75a10056-1bc8-4440-8bfa-c39cd73655c7",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "VaultTec-Dev <vaulttec-dev@proton.me>"
+    }
+  }
+}
