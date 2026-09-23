@@ -15,8 +15,17 @@ export type Board = {
   key: string;
   name: string;
   createdBy: string;
+  /** Id of the folder the board is in; absent for none. */
+  folder?: string;
   createdAt: string;
   editedAt: string;
+};
+
+export type Folder = {
+  id: string;
+  name: string;
+  createdBy: string;
+  createdAt: string;
 };
 
 export type Account = {
@@ -68,6 +77,31 @@ export const saveBoard = async (id: string, key: string, name?: string) => {
     key,
     ...(name !== undefined ? { name } : {}),
   });
+};
+
+/** Folders, by name. There is one level of them. */
+export const fetchFolders = async (): Promise<Folder[]> => {
+  const response = await request("GET", "/api/folders");
+  return (await response.json()) ?? [];
+};
+
+export const createFolder = async (name: string): Promise<Folder> => {
+  const response = await request("POST", "/api/folders", { name });
+  return response.json();
+};
+
+export const renameFolder = async (id: string, name: string) => {
+  await request("PUT", `/api/folders/${id}`, { name });
+};
+
+/** Deletes a folder; its boards stay, outside any folder. */
+export const deleteFolder = async (id: string) => {
+  await request("DELETE", `/api/folders/${id}`);
+};
+
+/** Puts a board in a folder, or in none when `folder` is empty. */
+export const moveBoard = async (id: string, folder: string) => {
+  await request("PUT", `/api/boards/${id}/folder`, { folder });
 };
 
 export type Version = { id: string; at: string };

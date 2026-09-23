@@ -8,7 +8,50 @@
 
 import { fetchAccount } from "./api";
 
+import type { Collaborator, SocketId } from "@excalidraw/excalidraw/types";
+
 import type { CollabAPI } from "../collab/Collab";
+
+/**
+ * Shows each person once. Every open tab is a connection of its own, and a new
+ * tab opens the last board, so one person with a few tabs showed up as a few
+ * collaborators. Your own other tabs are left out; for anyone else the tab they
+ * used last stands for them, which keeps their live cursor. Connections that
+ * have not told their name yet are left as they are.
+ */
+export const onePerPerson = (
+  collaborators: Map<SocketId, Collaborator>,
+  lastActive: Map<SocketId, number>,
+): Map<SocketId, Collaborator> => {
+  const me = [...collaborators.values()].find((c) => c.isCurrentUser)?.username;
+  const chosen = new Map<string, SocketId>();
+  for (const [socketId, collaborator] of collaborators) {
+    const name = collaborator.username;
+    if (!name || collaborator.isCurrentUser) {
+      continue;
+    }
+    const current = chosen.get(name);
+    if (
+      current === undefined ||
+      (lastActive.get(socketId) ?? 0) > (lastActive.get(current) ?? 0)
+    ) {
+      chosen.set(name, socketId);
+    }
+  }
+
+  const shown = new Map<SocketId, Collaborator>();
+  for (const [socketId, collaborator] of collaborators) {
+    const name = collaborator.username;
+    if (
+      !name ||
+      collaborator.isCurrentUser ||
+      (name !== me && chosen.get(name) === socketId)
+    ) {
+      shown.set(socketId, collaborator);
+    }
+  }
+  return shown;
+};
 
 const GITHUB_LOGIN = /^[A-Za-z0-9](?:[A-Za-z0-9-]{0,38})$/;
 

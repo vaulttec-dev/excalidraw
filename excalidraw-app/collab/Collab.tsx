@@ -91,7 +91,7 @@ import { resetBrowserStateVersions } from "../data/tabSync";
 
 import { collabErrorIndicatorAtom } from "./CollabError";
 import Portal from "./Portal";
-import { githubAvatarUrl } from "../selfhost/identity";
+import { githubAvatarUrl, onePerPerson } from "../selfhost/identity";
 
 import type {
   SocketUpdateDataSource,
@@ -894,7 +894,14 @@ class Collab extends PureComponent<CollabProps, CollabState> {
       collaborators.set(socketId, collaborator);
     }
     this.collaborators = collaborators;
-    this.excalidrawAPI.updateScene({ collaborators });
+    for (const socketId of this.lastActive.keys()) {
+      if (!collaborators.has(socketId)) {
+        this.lastActive.delete(socketId);
+      }
+    }
+    this.excalidrawAPI.updateScene({
+      collaborators: onePerPerson(collaborators, this.lastActive),
+    });
 
     // unfollow if the followed user left the room
     const userToFollow = appJotaiStore.get(userToFollowAtom);
@@ -919,11 +926,17 @@ class Collab extends PureComponent<CollabProps, CollabState> {
     }
     collaborators.set(socketId, user);
     this.collaborators = collaborators;
+    if (updates.pointer || updates.userState === "active") {
+      this.lastActive.set(socketId, Date.now());
+    }
 
     this.excalidrawAPI.updateScene({
-      collaborators,
+      collaborators: onePerPerson(collaborators, this.lastActive),
     });
   };
+
+  /** When each connection last moved its pointer, to pick one per person. */
+  private lastActive = new Map<SocketId, number>();
 
   public setLastBroadcastedOrReceivedSceneVersion = (version: number) => {
     this.lastBroadcastedOrReceivedSceneVersion = version;

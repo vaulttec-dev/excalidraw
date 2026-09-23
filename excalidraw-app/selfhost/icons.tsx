@@ -31,6 +31,38 @@ export const historyIcon = createIcon(
   iconProps,
 );
 
+const FOLDER_PATH =
+  "M5 4h4l3 3h7a2 2 0 0 1 2 2v8a2 2 0 0 1 -2 2h-14a2 2 0 0 1 -2 -2v-11a2 2 0 0 1 2 -2";
+
+export const folderIcon = createIcon(
+  <g strokeWidth={1.5}>
+    <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+    <path d={FOLDER_PATH} />
+  </g>,
+  iconProps,
+);
+
+export const folderPlusIcon = createIcon(
+  <g strokeWidth={1.5}>
+    <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+    <path d={FOLDER_PATH} />
+    <path d="M12 10v6" />
+    <path d="M9 13h6" />
+  </g>,
+  iconProps,
+);
+
+/** "Move to a folder". */
+export const folderMoveIcon = createIcon(
+  <g strokeWidth={1.5}>
+    <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+    <path d={FOLDER_PATH} />
+    <path d="M9 13h6" />
+    <path d="M13 11l2 2l-2 2" />
+  </g>,
+  iconProps,
+);
+
 export const logoutIcon = createIcon(
   <g strokeWidth={1.5}>
     <path stroke="none" d="M0 0h24v24H0z" fill="none" />

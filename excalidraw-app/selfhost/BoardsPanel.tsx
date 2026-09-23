@@ -10,23 +10,51 @@ import React, { useCallback, useEffect, useMemo, useState } from "react";
 
 import {
   boardLink,
+  createFolder,
   currentRoom,
   deleteBoard,
+  deleteFolder,
   fetchBoards,
+  fetchFolders,
   fetchTrash,
   purgeFromTrash,
   fetchVersions,
   generateRoom,
+  moveBoard,
   openBoard,
+  renameFolder,
   restoreFromTrash,
   restoreVersion,
   saveBoard,
 } from "./api";
-import { historyIcon } from "./icons";
+import {
+  folderIcon,
+  folderMoveIcon,
+  folderPlusIcon,
+  historyIcon,
+} from "./icons";
 
 import "./BoardsPanel.scss";
 
-import type { Board, TrashedBoard, Version } from "./api";
+import type { Board, Folder, TrashedBoard, Version } from "./api";
+
+// Which folders this viewer has collapsed; a convenience kept per browser.
+const COLLAPSED_KEY = "excalidraw-self-host-collapsed-folders";
+
+const readCollapsed = (): Set<string> => {
+  try {
+    const stored = JSON.parse(localStorage.getItem(COLLAPSED_KEY) || "[]");
+    return new Set(Array.isArray(stored) ? stored : []);
+  } catch {
+    return new Set();
+  }
+};
+
+const writeCollapsed = (collapsed: Set<string>) => {
+  try {
+    localStorage.setItem(COLLAPSED_KEY, JSON.stringify([...collapsed]));
+  } catch {}
+};
 
 const dateTime = new Intl.DateTimeFormat("uk", {
   day: "numeric",
@@ -59,11 +87,13 @@ const ago = (iso: string) => {
 const NameForm = ({
   initial,
   submitLabel,
+  placeholder = "Назва дошки",
   onSubmit,
   onCancel,
 }: {
   initial: string;
   submitLabel: string;
+  placeholder?: string;
   onSubmit: (name: string) => void;
   onCancel: () => void;
 }) => {
@@ -80,7 +110,7 @@ const NameForm = ({
         autoFocus
         type="text"
         maxLength={120}
-        placeholder="Назва дошки"
+        placeholder={placeholder}
         value={name}
         onChange={(event) => setName(event.target.value)}
         onKeyDown={(event) => {
@@ -281,12 +311,20 @@ const Trash = ({
  */
 export const BoardsPanel = () => {
   const [boards, setBoards] = useState<Board[] | null>(null);
+  const [folders, setFolders] = useState<Folder[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [query, setQuery] = useState("");
-  const [creating, setCreating] = useState(false);
+  // Where a new board is being named: "" for the top level, or a folder id.
+  const [creating, setCreating] = useState<string | null>(null);
+  const [creatingFolder, setCreatingFolder] = useState(false);
   const [renaming, setRenaming] = useState<string | null>(null);
+  const [renamingFolder, setRenamingFolder] = useState<string | null>(null);
+  const [moving, setMoving] = useState<string | null>(null);
   const [copied, setCopied] = useState<string | null>(null);
   const [historyOf, setHistoryOf] = useState<string | null>(null);
+  const [collapsed, setCollapsed] = useState(readCollapsed);
+  const [dragging, setDragging] = useState<string | null>(null);
+  const [dropTarget, setDropTarget] = useState<string | null>(null);
   const excalidrawAPI = useExcalidrawAPI();
   const showError = useCallback((message: string) => setError(message), []);
 
@@ -300,7 +338,12 @@ export const BoardsPanel = () => {
 
   const load = useCallback(async () => {
     try {
-      setBoards(await fetchBoards());
+      const [nextBoards, nextFolders] = await Promise.all([
+        fetchBoards(),
+        fetchFolders(),
+      ]);
+      setBoards(nextBoards);
+      setFolders(nextFolders);
       setError(null);
     } catch (err: any) {
       setError(err.message);
@@ -314,15 +357,54 @@ export const BoardsPanel = () => {
     return () => window.removeEventListener("focus", load);
   }, [load]);
 
-  const shown = useMemo(() => {
-    const needle = query.trim().toLowerCase();
-    return (boards ?? []).filter(
-      (board) =>
-        !needle ||
-        board.name.toLowerCase().includes(needle) ||
-        board.createdBy.toLowerCase().includes(needle),
-    );
-  }, [boards, query]);
+  const needle = query.trim().toLowerCase();
+
+  const shown = useMemo(
+    () =>
+      (boards ?? []).filter(
+        (board) =>
+          !needle ||
+          board.name.toLowerCase().includes(needle) ||
+          board.createdBy.toLowerCase().includes(needle),
+      ),
+    [boards, needle],
+  );
+
+  // Boards by folder id; "" holds the ones outside any folder, including any
+  // whose folder is gone.
+  const byFolder = useMemo(() => {
+    const known = new Set(folders.map((folder) => folder.id));
+    const groups = new Map<string, Board[]>();
+    for (const board of shown) {
+      const key = board.folder && known.has(board.folder) ? board.folder : "";
+      groups.set(key, [...(groups.get(key) ?? []), board]);
+    }
+    return groups;
+  }, [shown, folders]);
+
+  // While searching, only folders with matches — or a matching name — show.
+  const shownFolders = folders.filter(
+    (folder) =>
+      !needle ||
+      byFolder.has(folder.id) ||
+      folder.name.toLowerCase().includes(needle),
+  );
+  const loose = byFolder.get("") ?? [];
+
+  const toggleFolder = (id: string) => {
+    const next = new Set(collapsed);
+    if (!next.delete(id)) {
+      next.add(id);
+    }
+    setCollapsed(next);
+    writeCollapsed(next);
+  };
+
+  const expand = (id: string) => {
+    if (collapsed.has(id)) {
+      toggleFolder(id);
+    }
+  };
 
   const run = async (action: () => Promise<unknown>) => {
     try {
@@ -334,7 +416,7 @@ export const BoardsPanel = () => {
 
   const [creatingBusy, setCreatingBusy] = useState(false);
 
-  const create = (name: string) => {
+  const create = (name: string, folder: string) => {
     // A second submit while the first is under way would make a second board.
     if (creatingBusy) {
       return;
@@ -343,11 +425,100 @@ export const BoardsPanel = () => {
     run(async () => {
       const room = generateRoom();
       await saveBoard(room.id, room.key, name);
+      if (folder) {
+        await moveBoard(room.id, folder);
+        expand(folder);
+      }
       await openBoard(room, excalidrawAPI);
-      setCreating(false);
+      setCreating(null);
       await load();
     }).finally(() => setCreatingBusy(false));
   };
+
+  const addFolder = (name: string) => {
+    if (!name) {
+      return;
+    }
+    run(async () => {
+      await createFolder(name);
+      setCreatingFolder(false);
+      await load();
+    });
+  };
+
+  const renameFolderTo = (folder: Folder, name: string) => {
+    if (!name) {
+      return;
+    }
+    run(async () => {
+      await renameFolder(folder.id, name);
+      setRenamingFolder(null);
+      await load();
+    });
+  };
+
+  const removeFolder = (folder: Folder) => {
+    const count = (boards ?? []).filter((b) => b.folder === folder.id).length;
+    if (
+      !window.confirm(
+        count
+          ? `Видалити папку «${folder.name}»? Її дошки (${count}) не видаляться — вони опиняться поза папками.`
+          : `Видалити порожню папку «${folder.name}»?`,
+      )
+    ) {
+      return;
+    }
+    run(async () => {
+      await deleteFolder(folder.id);
+      await load();
+    });
+  };
+
+  const move = (board: Board, folder: string) => {
+    setMoving(null);
+    if ((board.folder ?? "") === folder) {
+      return;
+    }
+    // Shown at once; the list is read back after the server has it.
+    setBoards((current) =>
+      (current ?? []).map((b) =>
+        b.id === board.id ? { ...b, folder: folder || undefined } : b,
+      ),
+    );
+    if (folder) {
+      expand(folder);
+    }
+    run(async () => {
+      await moveBoard(board.id, folder);
+      await load();
+    });
+  };
+
+  // Boards can be dragged onto a folder, or onto the top level to take them
+  // out of one.
+  const dropZone = (target: string) => ({
+    onDragOver: (event: React.DragEvent) => {
+      if (dragging) {
+        event.preventDefault();
+        event.dataTransfer.dropEffect = "move";
+        setDropTarget(target);
+      }
+    },
+    onDragLeave: (event: React.DragEvent) => {
+      if (!event.currentTarget.contains(event.relatedTarget as Node | null)) {
+        setDropTarget((current) => (current === target ? null : current));
+      }
+    },
+    onDrop: (event: React.DragEvent) => {
+      event.preventDefault();
+      const board = (boards ?? []).find((b) => b.id === dragging);
+      setDragging(null);
+      setDropTarget(null);
+      if (board) {
+        move(board, target);
+      }
+    },
+  });
 
   const rename = (board: Board, name: string) =>
     run(async () => {
@@ -378,24 +549,256 @@ export const BoardsPanel = () => {
       window.setTimeout(() => setCopied(null), 1500);
     });
 
+  const renderBoard = (board: Board) =>
+    renaming === board.id ? (
+      <li key={board.id} className="selfhost-boards__item">
+        <NameForm
+          initial={board.name}
+          submitLabel="Зберегти"
+          onSubmit={(name) => rename(board, name)}
+          onCancel={() => setRenaming(null)}
+        />
+      </li>
+    ) : (
+      <li
+        key={board.id}
+        className={clsx("selfhost-boards__item", {
+          "selfhost-boards__item--current": current?.id === board.id,
+          "selfhost-boards__item--dragging": dragging === board.id,
+        })}
+        draggable
+        onDragStart={(event) => {
+          event.dataTransfer.effectAllowed = "move";
+          event.dataTransfer.setData("text/plain", board.name || board.id);
+          setDragging(board.id);
+        }}
+        onDragEnd={() => {
+          setDragging(null);
+          setDropTarget(null);
+        }}
+      >
+        <button
+          type="button"
+          className="selfhost-boards__open"
+          onClick={() =>
+            current?.id !== board.id && openBoard(board, excalidrawAPI)
+          }
+          title={current?.id === board.id ? "Відкрита зараз" : "Відкрити"}
+        >
+          <span
+            className={clsx("selfhost-boards__name", {
+              "selfhost-boards__name--untitled": !board.name,
+            })}
+          >
+            {board.name || "Без назви"}
+          </span>
+          <span className="selfhost-boards__meta">
+            {current?.id === board.id ? "відкрита зараз · " : ""}
+            {ago(board.editedAt)} · {board.createdBy || "—"}
+          </span>
+        </button>
+        <div className="selfhost-boards__actions">
+          <button
+            type="button"
+            title={copied === board.id ? "Скопійовано" : "Копіювати посилання"}
+            onClick={() => copy(board)}
+          >
+            {LinkIcon}
+          </button>
+          <button
+            type="button"
+            title="Перейменувати"
+            onClick={() => setRenaming(board.id)}
+          >
+            {pencilIcon}
+          </button>
+          {folders.length > 0 && (
+            <button
+              type="button"
+              title="Перемістити в папку"
+              className={clsx({
+                "selfhost-boards__active": moving === board.id,
+              })}
+              onClick={() => setMoving(moving === board.id ? null : board.id)}
+            >
+              {folderMoveIcon}
+            </button>
+          )}
+          <button
+            type="button"
+            title="Історія версій"
+            className={clsx({
+              "selfhost-boards__active": historyOf === board.id,
+            })}
+            onClick={() =>
+              setHistoryOf(historyOf === board.id ? null : board.id)
+            }
+          >
+            {historyIcon}
+          </button>
+          <button
+            type="button"
+            title="У кошик"
+            className="selfhost-boards__danger"
+            onClick={() => remove(board)}
+          >
+            {TrashIcon}
+          </button>
+        </div>
+        {moving === board.id && (
+          <select
+            autoFocus
+            className="selfhost-boards__move"
+            value={board.folder ?? ""}
+            onChange={(event) => move(board, event.target.value)}
+            onKeyDown={(event) => {
+              event.stopPropagation();
+              if (event.key === "Escape") {
+                setMoving(null);
+              }
+            }}
+          >
+            <option value="">Без папки</option>
+            {folders.map((folder) => (
+              <option key={folder.id} value={folder.id}>
+                {folder.name}
+              </option>
+            ))}
+          </select>
+        )}
+        {historyOf === board.id && (
+          <Versions board={board} onError={showError} />
+        )}
+      </li>
+    );
+
+  const renderFolder = (folder: Folder) => {
+    const items = byFolder.get(folder.id) ?? [];
+    // A search shows what matched without having to open folders.
+    const open = !!needle || !collapsed.has(folder.id);
+    return (
+      <li
+        key={folder.id}
+        className={clsx("selfhost-boards__folder", {
+          "selfhost-boards__drop": dropTarget === folder.id,
+        })}
+        {...dropZone(folder.id)}
+      >
+        {renamingFolder === folder.id ? (
+          <NameForm
+            initial={folder.name}
+            submitLabel="Зберегти"
+            placeholder="Назва папки"
+            onSubmit={(name) => renameFolderTo(folder, name)}
+            onCancel={() => setRenamingFolder(null)}
+          />
+        ) : (
+          <div className="selfhost-boards__folder-head">
+            <button
+              type="button"
+              className="selfhost-boards__folder-toggle"
+              onClick={() => toggleFolder(folder.id)}
+              aria-expanded={open}
+            >
+              <span className="selfhost-boards__chevron">
+                {open ? "▾" : "▸"}
+              </span>
+              {folderIcon}
+              <span className="selfhost-boards__folder-name">
+                {folder.name}
+              </span>
+              <span className="selfhost-boards__meta">
+                {(boards ?? []).filter((b) => b.folder === folder.id).length}
+              </span>
+            </button>
+            <div className="selfhost-boards__actions">
+              <button
+                type="button"
+                title="Нова дошка в цій папці"
+                onClick={() => {
+                  expand(folder.id);
+                  setCreating(folder.id);
+                }}
+              >
+                {PlusIcon}
+              </button>
+              <button
+                type="button"
+                title="Перейменувати папку"
+                onClick={() => setRenamingFolder(folder.id)}
+              >
+                {pencilIcon}
+              </button>
+              <button
+                type="button"
+                title="Видалити папку"
+                className="selfhost-boards__danger"
+                onClick={() => removeFolder(folder)}
+              >
+                {TrashIcon}
+              </button>
+            </div>
+          </div>
+        )}
+        {creating === folder.id && (
+          <NameForm
+            initial=""
+            submitLabel="Створити"
+            onSubmit={(name) => create(name, folder.id)}
+            onCancel={() => setCreating(null)}
+          />
+        )}
+        {open && (
+          <ul className="selfhost-boards__list selfhost-boards__folder-boards">
+            {items.map(renderBoard)}
+            {items.length === 0 && !needle && (
+              <li className="selfhost-boards__folder-empty">
+                Порожньо — перетягніть сюди дошку.
+              </li>
+            )}
+          </ul>
+        )}
+      </li>
+    );
+  };
+
   return (
     <div className="selfhost-boards">
-      {creating ? (
+      {creating === "" ? (
         <NameForm
           initial=""
           submitLabel="Створити"
-          onSubmit={create}
-          onCancel={() => setCreating(false)}
+          onSubmit={(name) => create(name, "")}
+          onCancel={() => setCreating(null)}
+        />
+      ) : creatingFolder ? (
+        <NameForm
+          initial=""
+          submitLabel="Створити"
+          placeholder="Назва папки"
+          onSubmit={addFolder}
+          onCancel={() => setCreatingFolder(false)}
         />
       ) : (
-        <button
-          type="button"
-          className="selfhost-boards__primary selfhost-boards__new"
-          onClick={() => setCreating(true)}
-        >
-          {PlusIcon}
-          Нова дошка
-        </button>
+        <div className="selfhost-boards__toolbar">
+          <button
+            type="button"
+            className="selfhost-boards__primary selfhost-boards__new"
+            onClick={() => setCreating("")}
+          >
+            {PlusIcon}
+            Нова дошка
+          </button>
+          <button
+            type="button"
+            className="selfhost-boards__new-folder"
+            title="Нова папка"
+            aria-label="Нова папка"
+            onClick={() => setCreatingFolder(true)}
+          >
+            {folderPlusIcon}
+          </button>
+        </div>
       )}
 
       <input
@@ -413,91 +816,33 @@ export const BoardsPanel = () => {
         <div className="selfhost-boards__empty">Завантаження…</div>
       )}
 
-      {boards !== null && shown.length === 0 && (
-        <div className="selfhost-boards__empty">
-          {boards.length ? "Нічого не знайдено." : "Дошок ще немає."}
-        </div>
+      {boards !== null &&
+        shown.length === 0 &&
+        (folders.length === 0 || needle) && (
+          <div className="selfhost-boards__empty">
+            {boards.length ? "Нічого не знайдено." : "Дошок ще немає."}
+          </div>
+        )}
+
+      {shownFolders.length > 0 && (
+        <ul className="selfhost-boards__list">
+          {shownFolders.map(renderFolder)}
+        </ul>
       )}
 
-      <ul className="selfhost-boards__list">
-        {shown.map((board) =>
-          renaming === board.id ? (
-            <li key={board.id} className="selfhost-boards__item">
-              <NameForm
-                initial={board.name}
-                submitLabel="Зберегти"
-                onSubmit={(name) => rename(board, name)}
-                onCancel={() => setRenaming(null)}
-              />
-            </li>
-          ) : (
-            <li
-              key={board.id}
-              className={clsx("selfhost-boards__item", {
-                "selfhost-boards__item--current": current?.id === board.id,
-              })}
-            >
-              <button
-                type="button"
-                className="selfhost-boards__open"
-                onClick={() =>
-                  current?.id !== board.id && openBoard(board, excalidrawAPI)
-                }
-                title={current?.id === board.id ? "Відкрита зараз" : "Відкрити"}
-              >
-                <span
-                  className={clsx("selfhost-boards__name", {
-                    "selfhost-boards__name--untitled": !board.name,
-                  })}
-                >
-                  {board.name || "Без назви"}
-                </span>
-                <span className="selfhost-boards__meta">
-                  {current?.id === board.id ? "відкрита зараз · " : ""}
-                  {ago(board.editedAt)} · {board.createdBy || "—"}
-                </span>
-              </button>
-              <div className="selfhost-boards__actions">
-                <button
-                  type="button"
-                  title={copied === board.id ? "Скопійовано" : "Копіювати посилання"}
-                  onClick={() => copy(board)}
-                >
-                  {LinkIcon}
-                </button>
-                <button
-                  type="button"
-                  title="Перейменувати"
-                  onClick={() => setRenaming(board.id)}
-                >
-                  {pencilIcon}
-                </button>
-                <button
-                  type="button"
-                  title="Історія версій"
-                  className={clsx({
-                    "selfhost-boards__active": historyOf === board.id,
-                  })}
-                  onClick={() =>
-                    setHistoryOf(historyOf === board.id ? null : board.id)
-                  }
-                >
-                  {historyIcon}
-                </button>
-                <button
-                  type="button"
-                  title="У кошик"
-                  className="selfhost-boards__danger"
-                  onClick={() => remove(board)}
-                >
-                  {TrashIcon}
-                </button>
-              </div>
-              {historyOf === board.id && (
-                <Versions board={board} onError={showError} />
-              )}
-            </li>
-          ),
+      <ul
+        className={clsx("selfhost-boards__list selfhost-boards__loose", {
+          "selfhost-boards__drop": dropTarget === "",
+          // Room to drop a board out of its folder when nothing is loose.
+          "selfhost-boards__loose--target": !!dragging && loose.length === 0,
+        })}
+        {...dropZone("")}
+      >
+        {loose.map(renderBoard)}
+        {!!dragging && loose.length === 0 && (
+          <li className="selfhost-boards__folder-empty">
+            Перетягніть сюди, щоб винести з папки.
+          </li>
         )}
       </ul>
 
