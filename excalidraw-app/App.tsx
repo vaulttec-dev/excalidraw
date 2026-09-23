@@ -148,6 +148,7 @@ import "./index.scss";
 
 import { ExcalidrawPlusPromoBanner } from "./components/ExcalidrawPlusPromoBanner";
 import { AppSidebar } from "./components/AppSidebar";
+import { applyGithubIdentity } from "./selfhost/identity";
 
 import type { CollabAPI } from "./collab/Collab";
 
@@ -407,6 +408,11 @@ const ExcalidrawWrapper = () => {
 
   const [, setShareDialogState] = useAtom(shareDialogStateAtom);
   const [collabAPI] = useAtom(collabAPIAtom);
+  useEffect(() => {
+    if (collabAPI) {
+      applyGithubIdentity(collabAPI);
+    }
+  }, [collabAPI]);
   const [isCollaborating] = useAtomWithInitialValue(isCollaboratingAtom, () => {
     return isCollaborationLink(window.location.href);
   });

@@ -91,6 +91,7 @@ import { resetBrowserStateVersions } from "../data/tabSync";
 
 import { collabErrorIndicatorAtom } from "./CollabError";
 import Portal from "./Portal";
+import { githubAvatarUrl } from "../selfhost/identity";
 
 import type {
   SocketUpdateDataSource,
@@ -912,6 +913,9 @@ class Collab extends PureComponent<CollabProps, CollabState> {
       updates,
       { isCurrentUser },
     );
+    if (!user.avatarUrl) {
+      user.avatarUrl = githubAvatarUrl(user.username);
+    }
     collaborators.set(socketId, user);
     this.collaborators = collaborators;
 
