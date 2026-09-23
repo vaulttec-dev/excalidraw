@@ -226,6 +226,23 @@
     color: var(--color-gray-60);
   }
 
+  .selfhost-boards__trash-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+    flex-shrink: 0;
+  }
+
+  .selfhost-boards .selfhost-boards__trash-actions .selfhost-boards__danger {
+    display: flex;
+    padding: 0.25rem;
+
+    svg {
+      width: 1rem;
+      height: 1rem;
+    }
+  }
+
   .selfhost-account {
     display: flex;
     align-items: center;

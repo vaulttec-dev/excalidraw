@@ -14,6 +14,7 @@ import {
   deleteBoard,
   fetchBoards,
   fetchTrash,
+  purgeFromTrash,
   fetchVersions,
   generateRoom,
   openBoard,
@@ -210,6 +211,24 @@ const Trash = ({
     }
   };
 
+  const purge = async (item: TrashedBoard) => {
+    if (
+      !window.confirm(
+        `Видалити «${
+          item.name || "Без назви"
+        }» назавжди? Разом з усіма версіями — відновити вже не вийде.`,
+      )
+    ) {
+      return;
+    }
+    try {
+      await purgeFromTrash(item.id);
+      await load();
+    } catch (err: any) {
+      onError(err.message);
+    }
+  };
+
   return (
     <div className="selfhost-boards__trash">
       <button
@@ -233,9 +252,20 @@ const Trash = ({
                   · видалив(ла) {item.deletedBy || "—"} {ago(item.deletedAt)}
                 </span>
               </span>
-              <button type="button" onClick={() => restore(item)}>
-                Відновити
-              </button>
+              <span className="selfhost-boards__trash-actions">
+                <button type="button" onClick={() => restore(item)}>
+                  Відновити
+                </button>
+                <button
+                  type="button"
+                  className="selfhost-boards__danger"
+                  title="Видалити назавжди"
+                  aria-label="Видалити назавжди"
+                  onClick={() => purge(item)}
+                >
+                  {TrashIcon}
+                </button>
+              </span>
             </li>
           ))}
         </ul>

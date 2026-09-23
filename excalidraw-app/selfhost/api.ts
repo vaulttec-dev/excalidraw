@@ -104,6 +104,11 @@ export const restoreFromTrash = async (id: string): Promise<Board> => {
   return response.json();
 };
 
+/** Deletes a board in the trash for good, versions included. */
+export const purgeFromTrash = async (id: string) => {
+  await request("DELETE", `/api/boards/trash/${id}`);
+};
+
 /** Moves a board to the trash, from where it can be restored. */
 export const deleteBoard = async (id: string) => {
   await request("DELETE", `/api/boards/${id}`);
