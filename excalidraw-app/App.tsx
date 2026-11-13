@@ -335,7 +335,10 @@ const initializeScene = async (opts: {
           ...restoreAppState(
             {
               ...scene?.appState,
-              theme: localDataState?.appState?.theme || scene?.appState?.theme,
+              // The editor's theme follows the app's theme setting. The saved
+              // state is not written while collaborating, so its theme is stale
+              // and switching boards flipped the theme back and forth.
+              theme: excalidrawAPI.getAppState().theme,
             },
             excalidrawAPI.getAppState(),
           ),
