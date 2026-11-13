@@ -8,13 +8,12 @@ import {
 import { restoreElements } from "@excalidraw/excalidraw/data/restore";
 import { getSceneVersion } from "@excalidraw/element";
 import { initializeApp } from "firebase/app";
+import { getFirestore, doc, runTransaction, Bytes } from "firebase/firestore";
 import {
-  getFirestore,
-  doc,
-  getDoc,
-  runTransaction,
-  Bytes,
-} from "firebase/firestore";
+  getFirestore as getFirestoreLite,
+  doc as docLite,
+  getDoc as getDocLite,
+} from "firebase/firestore/lite";
 import { getStorage, ref, uploadBytes } from "firebase/storage";
 
 import type { RemoteExcalidrawElement } from "@excalidraw/excalidraw/data/reconcile";
@@ -251,9 +250,10 @@ export const loadFromFirebase = async (
   roomKey: string,
   socket: Socket | null,
 ): Promise<readonly SyncableExcalidrawElement[] | null> => {
-  const firestore = _getFirestore();
-  const docRef = doc(firestore, "scenes", roomId);
-  const docSnap = await getDoc(docRef);
+  // Read over REST (Firestore Lite): the self-hosted backend serves the REST
+  // calls but not the watch stream that the full SDK's getDoc listens on.
+  const firestore = getFirestoreLite(_initializeFirebase());
+  const docSnap = await getDocLite(docLite(firestore, "scenes", roomId));
   if (!docSnap.exists()) {
     return null;
   }
