@@ -1,7 +1,4 @@
-import {
-  DEFAULT_SIDEBAR,
-  MQ_RIGHT_SIDEBAR_MIN_WIDTH,
-} from "@excalidraw/common";
+import { DEFAULT_SIDEBAR } from "@excalidraw/common";
 
 import type { AppState } from "@excalidraw/excalidraw/types";
 
@@ -12,6 +9,13 @@ import { BOARDS_TAB } from "./api";
 // every board is a collaboration room — and which upstream filled with "not
 // docked" for everyone, a choice nobody made.
 const DOCKED_KEY = "excalidraw-self-host-sidebar-docked";
+
+/**
+ * The narrowest editor the board list stays pinned in. Upstream's 1229px
+ * left the list unpinned in a window on half of a 1920px screen; at this
+ * width the board keeps about 600px beside it.
+ */
+export const SIDEBAR_DOCK_MIN_WIDTH = 900;
 
 export const rememberDocked = (docked: boolean) => {
   try {
@@ -37,7 +41,7 @@ export const boardsSidebarState = (
 ): Pick<AppState, "defaultSidebarDockedPreference" | "openSidebar"> => {
   const docked = isDocked();
   // Too narrow to dock: the sidebar would cover the board.
-  if (!docked || window.innerWidth <= MQ_RIGHT_SIDEBAR_MIN_WIDTH) {
+  if (!docked || window.innerWidth <= SIDEBAR_DOCK_MIN_WIDTH) {
     return { defaultSidebarDockedPreference: docked, openSidebar: current };
   }
   return {
