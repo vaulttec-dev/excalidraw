@@ -19,6 +19,8 @@ export type Board = {
   folder?: string;
   createdAt: string;
   editedAt: string;
+  /** Only the board's author or an organisation admin may delete it. */
+  canDelete: boolean;
 };
 
 export type Folder = {
@@ -112,6 +114,8 @@ export type TrashedBoard = {
   createdBy: string;
   deletedBy: string;
   deletedAt: string;
+  /** Only the board's author or an organisation admin may delete it for good. */
+  canPurge: boolean;
 };
 
 /** Stored versions of a board, newest first. */

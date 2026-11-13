@@ -298,15 +298,17 @@ const Trash = ({
                 <button type="button" onClick={() => restore(item)}>
                   Відновити
                 </button>
-                <button
-                  type="button"
-                  className="selfhost-boards__danger"
-                  title="Видалити назавжди"
-                  aria-label="Видалити назавжди"
-                  onClick={() => purge(item)}
-                >
-                  {TrashIcon}
-                </button>
+                {item.canPurge && (
+                  <button
+                    type="button"
+                    className="selfhost-boards__danger"
+                    title="Видалити назавжди"
+                    aria-label="Видалити назавжди"
+                    onClick={() => purge(item)}
+                  >
+                    {TrashIcon}
+                  </button>
+                )}
               </span>
             </li>
           ))}
@@ -704,14 +706,16 @@ export const BoardsPanel = () => {
           >
             {historyIcon}
           </button>
-          <button
-            type="button"
-            title="У кошик"
-            className="selfhost-boards__danger"
-            onClick={() => remove(board)}
-          >
-            {TrashIcon}
-          </button>
+          {board.canDelete && (
+            <button
+              type="button"
+              title="У кошик"
+              className="selfhost-boards__danger"
+              onClick={() => remove(board)}
+            >
+              {TrashIcon}
+            </button>
+          )}
         </div>
         {moving === board.id && (
           <select
