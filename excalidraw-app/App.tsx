@@ -50,6 +50,8 @@ import {
   restoreAppState,
   restoreElements,
 } from "@excalidraw/excalidraw/data/restore";
+import { getNormalizedZoom } from "@excalidraw/excalidraw/scene/normalize";
+import { getScrollToContentState } from "@excalidraw/excalidraw/viewport";
 import { newElementWith } from "@excalidraw/element";
 import { isInitializedImageElement } from "@excalidraw/element";
 import clsx from "clsx";
@@ -133,6 +135,7 @@ import DebugCanvas, {
   loadSavedDebugState,
 } from "./components/DebugCanvas";
 import { useSimulatedCollaborators } from "./debugCollaborators";
+import { boardsSidebarState } from "./selfhost/sidebar";
 import { ExcalidrawPlusIframeExport } from "./ExcalidrawPlusIframeExport";
 
 import "./index.scss";
@@ -339,6 +342,9 @@ const initializeScene = async (opts: {
           // necessary if we're invoking from a hashchange handler which doesn't
           // go through App.initializeScene() that resets this flag
           isLoading: false,
+          // A board opens at 100%, not at the zoom left over from the last one.
+          zoom: { value: getNormalizedZoom(1) },
+          ...boardsSidebarState(excalidrawAPI.getAppState().openSidebar),
         },
         elements: reconcileElements(
           scene?.elements || [],
@@ -578,11 +584,23 @@ const ExcalidrawWrapper = () => {
         initializeScene({ collabAPI, excalidrawAPI }).then((data) => {
           loadImages(data);
           if (data.scene) {
+            const elements = restoreElements(data.scene.elements, null, {
+              repairBindings: true,
+            });
+            const appState = restoreAppState(data.scene.appState, null);
             excalidrawAPI.updateScene({
-              elements: restoreElements(data.scene.elements, null, {
-                repairBindings: true,
-              }),
-              appState: restoreAppState(data.scene.appState, null),
+              elements,
+              // Switching boards centres the new one's content, as opening
+              // it in a fresh tab does.
+              appState: data.scene.scrollToContent
+                ? {
+                    ...appState,
+                    ...getScrollToContentState(elements, {
+                      ...excalidrawAPI.getAppState(),
+                      zoom: appState.zoom,
+                    }),
+                  }
+                : appState,
               captureUpdate: CaptureUpdateAction.IMMEDIATELY,
             });
           }
