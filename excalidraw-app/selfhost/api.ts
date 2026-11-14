@@ -20,29 +20,38 @@ export type Board = {
   createdAt: string;
   editedAt: string;
   /**
-   * Whether the reader may change the board: draw on it, rename it, move it,
-   * restore a version. False in a folder that is view-only for them.
+   * What everybody but the board's author and the admins may do with it,
+   * within what its folder allows.
+   */
+  access: Access;
+  /**
+   * Whether the reader may change the board: draw on it, rename it, restore a
+   * version. Both the board and its folder have to allow it.
    */
   canEdit: boolean;
+  /** Whether the reader may set the board's access. */
+  canManage: boolean;
   /**
-   * In a folder, whoever may change its boards may delete them; outside one,
-   * only the board's author or an organisation admin.
+   * Whether the reader may move the board: its author, its folder's author or
+   * an organisation admin.
    */
+  canMove: boolean;
+  /** Whoever may change the board may delete it. */
   canDelete: boolean;
 };
 
 /**
- * What everybody but a folder's author and the organisation admins may do with
- * its boards: look only, or edit and delete them too.
+ * What everybody but the author of a board or folder and the organisation
+ * admins may do with it: look only, or edit and delete too.
  */
-export type FolderAccess = "view" | "edit";
+export type Access = "view" | "edit";
 
 export type Folder = {
   id: string;
   name: string;
   createdBy: string;
   createdAt: string;
-  access: FolderAccess;
+  access: Access;
   /** Whether the reader may change the folder's boards. */
   canEdit: boolean;
   /** Whether the reader may rename or delete the folder and set its access. */
@@ -135,8 +144,13 @@ export const deleteFolder = async (id: string) => {
 };
 
 /** Sets what everybody but the author and the admins may do in a folder. */
-export const setFolderAccess = async (id: string, access: FolderAccess) => {
+export const setFolderAccess = async (id: string, access: Access) => {
   await request("PUT", `/api/folders/${id}/access`, { access });
+};
+
+/** Sets what everybody but the author and the admins may do with a board. */
+export const setBoardAccess = async (id: string, access: Access) => {
+  await request("PUT", `/api/boards/${id}/access`, { access });
 };
 
 /** Puts a board in a folder, or in none when `folder` is empty. */

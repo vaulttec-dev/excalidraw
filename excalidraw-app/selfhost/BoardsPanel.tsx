@@ -35,6 +35,7 @@ import {
   restoreFromTrash,
   restoreVersion,
   saveBoard,
+  setBoardAccess,
   setFolderAccess,
 } from "./api";
 import { takeBoardAccess } from "./access";
@@ -567,7 +568,7 @@ export const BoardsPanel = () => {
     if (
       !window.confirm(
         next === "edit"
-          ? `Дозволити всім редагувати й видаляти дошки в папці «${folder.name}»?`
+          ? `Дозволити всім редагувати й видаляти дошки в папці «${folder.name}»? Дошки, які їхні автори лишили для перегляду, так і лишаться.`
           : `Залишити іншим лише перегляд дошок у папці «${folder.name}»? Редагувати зможуть тільки автор папки та адміністратори.`,
       )
     ) {
@@ -575,6 +576,24 @@ export const BoardsPanel = () => {
     }
     run(async () => {
       await setFolderAccess(folder.id, next);
+      await load();
+    });
+  };
+
+  const toggleBoardAccess = (board: Board) => {
+    const next = board.access === "edit" ? "view" : "edit";
+    const label = board.name || "Без назви";
+    if (
+      !window.confirm(
+        next === "edit"
+          ? `Дозволити всім редагувати й видаляти дошку «${label}»? У папці з лише переглядом це все одно лишиться недоступним.`
+          : `Залишити іншим лише перегляд дошки «${label}»? Редагувати зможуть тільки автор дошки та адміністратори.`,
+      )
+    ) {
+      return;
+    }
+    run(async () => {
+      await setBoardAccess(board.id, next);
       await load();
     });
   };
@@ -676,7 +695,7 @@ export const BoardsPanel = () => {
           "selfhost-boards__item--current": current?.id === board.id,
           "selfhost-boards__item--dragging": dragging === board.id,
         })}
-        draggable={board.canEdit}
+        draggable={board.canMove}
         onDragStart={(event) => {
           event.dataTransfer.effectAllowed = "move";
           event.dataTransfer.setData("text/plain", board.name || board.id);
@@ -705,9 +724,23 @@ export const BoardsPanel = () => {
           <span className="selfhost-boards__meta">
             {current?.id === board.id ? "відкрита зараз · " : ""}
             {ago(board.editedAt)} · {board.createdBy || "—"}
+            {!board.canEdit && " · лише перегляд"}
           </span>
         </button>
         <div className="selfhost-boards__actions">
+          {board.canManage && (
+            <button
+              type="button"
+              title={
+                board.access === "edit"
+                  ? "Усі можуть редагувати. Залишити іншим лише перегляд"
+                  : "Інші лише переглядають. Дозволити всім редагувати"
+              }
+              onClick={() => toggleBoardAccess(board)}
+            >
+              {board.access === "edit" ? UnlockedIcon : LockedIcon}
+            </button>
+          )}
           <button
             type="button"
             title={copied === board.id ? "Скопійовано" : "Копіювати посилання"}
@@ -724,7 +757,7 @@ export const BoardsPanel = () => {
               {pencilIcon}
             </button>
           )}
-          {board.canEdit && editableFolders.length > 0 && (
+          {board.canMove && editableFolders.length > 0 && (
             <button
               type="button"
               title="Перемістити в папку"

@@ -10,7 +10,7 @@ import { BOARDS_TAB, currentRoom, fetchBoard } from "./api";
 import type { Board } from "./api";
 
 /**
- * Whether the open board may only be looked at: it is in a folder that is
+ * Whether the open board may only be looked at: the board or its folder is
  * view-only for this account. The server refuses changes to such a board
  * anyway; showing it in view mode keeps anybody from drawing what would not be
  * kept.
@@ -68,7 +68,7 @@ export const ReadOnlyBadge = () => {
     <button
       type="button"
       className="selfhost-read-only"
-      title="Ця дошка в папці, де вам дозволено лише перегляд. Змінювати її можуть автор папки та адміністратори; автор може відкрити редагування для всіх."
+      title="Вам дозволено лише перегляд цієї дошки. Змінювати її можуть автор дошки (якщо дозволяє її папка), автор папки та адміністратори; автори можуть відкрити редагування для всіх."
       onClick={() =>
         excalidrawAPI?.toggleSidebar({
           name: DEFAULT_SIDEBAR.name,
