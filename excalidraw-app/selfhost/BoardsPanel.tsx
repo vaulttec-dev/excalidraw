@@ -1,7 +1,10 @@
 import {
   LinkIcon,
+  LockedIcon,
   PlusIcon,
   TrashIcon,
+  UnlockedIcon,
+  eyeIcon,
   pencilIcon,
 } from "@excalidraw/excalidraw/components/icons";
 import { useExcalidrawAPI } from "@excalidraw/excalidraw";
@@ -32,7 +35,9 @@ import {
   restoreFromTrash,
   restoreVersion,
   saveBoard,
+  setFolderAccess,
 } from "./api";
+import { takeBoardAccess } from "./access";
 import {
   folderIcon,
   folderMoveIcon,
@@ -208,13 +213,15 @@ const Versions = ({
             {dateTime.format(new Date(version.at))}
             <span className="selfhost-boards__meta"> · {ago(version.at)}</span>
           </span>
-          <button
-            type="button"
-            disabled={busy !== null}
-            onClick={() => restore(version)}
-          >
-            {busy === version.id ? "…" : "Відновити"}
-          </button>
+          {board.canEdit && (
+            <button
+              type="button"
+              disabled={busy !== null}
+              onClick={() => restore(version)}
+            >
+              {busy === version.id ? "…" : "Відновити"}
+            </button>
+          )}
         </li>
       ))}
     </ul>
@@ -295,9 +302,11 @@ const Trash = ({
                 </span>
               </span>
               <span className="selfhost-boards__trash-actions">
-                <button type="button" onClick={() => restore(item)}>
-                  Відновити
-                </button>
+                {item.canRestore && (
+                  <button type="button" onClick={() => restore(item)}>
+                    Відновити
+                  </button>
+                )}
                 {item.canPurge && (
                   <button
                     type="button"
@@ -360,6 +369,8 @@ export const BoardsPanel = () => {
       ]);
       setBoards(nextBoards);
       setFolders(nextFolders);
+      // The open board's folder may have been opened or closed for editing.
+      takeBoardAccess(nextBoards);
       setError(null);
     } catch (err: any) {
       setError(err.message);
@@ -544,6 +555,30 @@ export const BoardsPanel = () => {
     });
   };
 
+  // A board goes only where the reader may change boards.
+  const editableFolders = folders.filter((folder) => folder.canEdit);
+  const folderById = useMemo(
+    () => new Map(folders.map((folder) => [folder.id, folder])),
+    [folders],
+  );
+
+  const toggleAccess = (folder: Folder) => {
+    const next = folder.access === "edit" ? "view" : "edit";
+    if (
+      !window.confirm(
+        next === "edit"
+          ? `Дозволити всім редагувати й видаляти дошки в папці «${folder.name}»?`
+          : `Залишити іншим лише перегляд дошок у папці «${folder.name}»? Редагувати зможуть тільки автор папки та адміністратори.`,
+      )
+    ) {
+      return;
+    }
+    run(async () => {
+      await setFolderAccess(folder.id, next);
+      await load();
+    });
+  };
+
   const move = (board: Board, folder: string) => {
     setMoving(null);
     if ((board.folder ?? "") === folder) {
@@ -564,31 +599,36 @@ export const BoardsPanel = () => {
     });
   };
 
-  // Boards can be dragged onto a folder, or onto the top level to take them
-  // out of one.
-  const dropZone = (target: string) => ({
-    onDragOver: (event: React.DragEvent) => {
-      if (dragging) {
+  // Boards can be dragged onto a folder whose boards the reader may change, or
+  // onto the top level to take them out of one.
+  const dropZone = (target: string) => {
+    if (target && !folderById.get(target)?.canEdit) {
+      return {};
+    }
+    return {
+      onDragOver: (event: React.DragEvent) => {
+        if (dragging) {
+          event.preventDefault();
+          event.dataTransfer.dropEffect = "move";
+          setDropTarget(target);
+        }
+      },
+      onDragLeave: (event: React.DragEvent) => {
+        if (!event.currentTarget.contains(event.relatedTarget as Node | null)) {
+          setDropTarget((current) => (current === target ? null : current));
+        }
+      },
+      onDrop: (event: React.DragEvent) => {
         event.preventDefault();
-        event.dataTransfer.dropEffect = "move";
-        setDropTarget(target);
-      }
-    },
-    onDragLeave: (event: React.DragEvent) => {
-      if (!event.currentTarget.contains(event.relatedTarget as Node | null)) {
-        setDropTarget((current) => (current === target ? null : current));
-      }
-    },
-    onDrop: (event: React.DragEvent) => {
-      event.preventDefault();
-      const board = (boards ?? []).find((b) => b.id === dragging);
-      setDragging(null);
-      setDropTarget(null);
-      if (board) {
-        move(board, target);
-      }
-    },
-  });
+        const board = (boards ?? []).find((b) => b.id === dragging);
+        setDragging(null);
+        setDropTarget(null);
+        if (board) {
+          move(board, target);
+        }
+      },
+    };
+  };
 
   const rename = (board: Board, name: string) =>
     run(async () => {
@@ -636,7 +676,7 @@ export const BoardsPanel = () => {
           "selfhost-boards__item--current": current?.id === board.id,
           "selfhost-boards__item--dragging": dragging === board.id,
         })}
-        draggable
+        draggable={board.canEdit}
         onDragStart={(event) => {
           event.dataTransfer.effectAllowed = "move";
           event.dataTransfer.setData("text/plain", board.name || board.id);
@@ -675,14 +715,16 @@ export const BoardsPanel = () => {
           >
             {LinkIcon}
           </button>
-          <button
-            type="button"
-            title="Перейменувати"
-            onClick={() => setRenaming(board.id)}
-          >
-            {pencilIcon}
-          </button>
-          {folders.length > 0 && (
+          {board.canEdit && (
+            <button
+              type="button"
+              title="Перейменувати"
+              onClick={() => setRenaming(board.id)}
+            >
+              {pencilIcon}
+            </button>
+          )}
+          {board.canEdit && editableFolders.length > 0 && (
             <button
               type="button"
               title="Перемістити в папку"
@@ -731,7 +773,7 @@ export const BoardsPanel = () => {
             }}
           >
             <option value="">Без папки</option>
-            {folders.map((folder) => (
+            {editableFolders.map((folder) => (
               <option key={folder.id} value={folder.id}>
                 {folder.name}
               </option>
@@ -779,36 +821,65 @@ export const BoardsPanel = () => {
               <span className="selfhost-boards__folder-name">
                 {folder.name}
               </span>
+              {folder.access === "view" && (
+                <span
+                  className="selfhost-boards__access"
+                  title={
+                    folder.canEdit
+                      ? "Інші лише переглядають дошки цієї папки"
+                      : "Лише перегляд: змінювати дошки цієї папки можуть її автор та адміністратори"
+                  }
+                >
+                  {eyeIcon}
+                </span>
+              )}
               <span className="selfhost-boards__meta">
                 {folderCounts.get(folder.id) ?? 0}
               </span>
             </button>
             <div className="selfhost-boards__actions">
-              <button
-                type="button"
-                title="Нова дошка в цій папці"
-                onClick={() => {
-                  expand(folder.id);
-                  setCreating(folder.id);
-                }}
-              >
-                {PlusIcon}
-              </button>
-              <button
-                type="button"
-                title="Перейменувати папку"
-                onClick={() => setRenamingFolder(folder.id)}
-              >
-                {pencilIcon}
-              </button>
-              <button
-                type="button"
-                title="Видалити папку"
-                className="selfhost-boards__danger"
-                onClick={() => removeFolder(folder)}
-              >
-                {TrashIcon}
-              </button>
+              {folder.canEdit && (
+                <button
+                  type="button"
+                  title="Нова дошка в цій папці"
+                  onClick={() => {
+                    expand(folder.id);
+                    setCreating(folder.id);
+                  }}
+                >
+                  {PlusIcon}
+                </button>
+              )}
+              {folder.canManage && (
+                <>
+                  <button
+                    type="button"
+                    title={
+                      folder.access === "edit"
+                        ? "Усі можуть редагувати. Залишити іншим лише перегляд"
+                        : "Інші лише переглядають. Дозволити всім редагувати"
+                    }
+                    onClick={() => toggleAccess(folder)}
+                  >
+                    {folder.access === "edit" ? UnlockedIcon : LockedIcon}
+                  </button>
+                  <button
+                    type="button"
+                    title="Перейменувати папку"
+                    onClick={() => setRenamingFolder(folder.id)}
+                  >
+                    {pencilIcon}
+                  </button>
+                  <button
+                    type="button"
+                    title="Видалити папку"
+                    className="selfhost-boards__danger"
+                    onClick={() => removeFolder(folder)}
+                  >
+                    {TrashIcon}
+                  </button>
+                </>
+              )}
             </div>
           </div>
         )}
@@ -828,7 +899,9 @@ export const BoardsPanel = () => {
             )}
             {items.length === 0 && !needle && (
               <li className="selfhost-boards__folder-empty">
-                Порожньо — перетягніть сюди дошку.
+                {folder.canEdit
+                  ? "Порожньо — перетягніть сюди дошку."
+                  : "Порожньо."}
               </li>
             )}
           </ul>

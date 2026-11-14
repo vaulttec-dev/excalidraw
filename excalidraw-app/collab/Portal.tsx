@@ -13,6 +13,7 @@ import type {
 
 import { WS_EVENTS, FILE_UPLOAD_TIMEOUT, WS_SUBTYPES } from "../app_constants";
 import { isSyncableElement } from "../data";
+import { isBoardReadOnly } from "../selfhost/access";
 
 import type {
   SocketUpdateData,
@@ -144,6 +145,10 @@ class Portal {
     elements: readonly OrderedExcalidrawElement[],
     syncAll: boolean,
   ) => {
+    // The server does not pass a view-only board's scene on from this account.
+    if (isBoardReadOnly()) {
+      return;
+    }
     if (updateType === WS_SUBTYPES.INIT && !syncAll) {
       throw new Error("syncAll must be true when sending SCENE.INIT");
     }

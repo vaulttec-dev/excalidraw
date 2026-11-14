@@ -88,6 +88,7 @@ import {
   saveUsernameToLocalStorage,
 } from "../data/localStorage";
 import { resetBrowserStateVersions } from "../data/tabSync";
+import { isBoardReadOnly, refreshBoardAccess } from "../selfhost/access";
 import { githubAvatarUrl, onePerPerson } from "../selfhost/identity";
 
 import { collabErrorIndicatorAtom } from "./CollabError";
@@ -327,6 +328,10 @@ class Collab extends PureComponent<CollabProps, CollabState> {
   saveCollabRoomToFirebase = async (
     syncableElements: readonly SyncableExcalidrawElement[],
   ) => {
+    // The server would refuse it, and show it as a failed save.
+    if (isBoardReadOnly()) {
+      return;
+    }
     syncableElements = cloneJSON(syncableElements);
     try {
       const storedElements = await saveToFirebase(
@@ -701,6 +706,12 @@ class Collab extends PureComponent<CollabProps, CollabState> {
       },
     );
 
+    // The server did not pass a change on: the board is in a folder that is
+    // view-only for this account, perhaps since a moment ago.
+    this.portal.socket.on("read-only", () => {
+      refreshBoardAccess();
+    });
+
     this.portal.socket.on("first-in-room", async () => {
       if (this.portal.socket) {
         this.portal.socket.off("first-in-room");
@@ -1003,6 +1014,10 @@ class Collab extends PureComponent<CollabProps, CollabState> {
   };
 
   syncElements = (elements: readonly OrderedExcalidrawElement[]) => {
+    // Changes to a view-only board are neither passed on nor kept.
+    if (isBoardReadOnly()) {
+      return;
+    }
     this.broadcastElements(elements);
     this.queueSaveToFirebase();
   };

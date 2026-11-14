@@ -1,9 +1,9 @@
 import { CaptureUpdateAction } from "@excalidraw/excalidraw";
 
+import type { ExcalidrawImperativeAPI } from "@excalidraw/excalidraw/types";
+
 import { appJotaiStore } from "../app-jotai";
 import { collabAPIAtom } from "../collab/Collab";
-
-import type { ExcalidrawImperativeAPI } from "@excalidraw/excalidraw/types";
 
 // Client for the self-hosted backend this build is deployed with: the signed-in
 // account and the team's shared board list. Upstream has no accounts and no
@@ -19,15 +19,34 @@ export type Board = {
   folder?: string;
   createdAt: string;
   editedAt: string;
-  /** Only the board's author or an organisation admin may delete it. */
+  /**
+   * Whether the reader may change the board: draw on it, rename it, move it,
+   * restore a version. False in a folder that is view-only for them.
+   */
+  canEdit: boolean;
+  /**
+   * In a folder, whoever may change its boards may delete them; outside one,
+   * only the board's author or an organisation admin.
+   */
   canDelete: boolean;
 };
+
+/**
+ * What everybody but a folder's author and the organisation admins may do with
+ * its boards: look only, or edit and delete them too.
+ */
+export type FolderAccess = "view" | "edit";
 
 export type Folder = {
   id: string;
   name: string;
   createdBy: string;
   createdAt: string;
+  access: FolderAccess;
+  /** Whether the reader may change the folder's boards. */
+  canEdit: boolean;
+  /** Whether the reader may rename or delete the folder and set its access. */
+  canManage: boolean;
 };
 
 export type Account = {
@@ -73,6 +92,20 @@ export const fetchBoards = async (): Promise<Board[]> => {
   return (await response.json()) ?? [];
 };
 
+/** One board, or null when it is not in the list. */
+export const fetchBoard = async (id: string): Promise<Board | null> => {
+  const response = await fetch(`/api/boards/${id}`, {
+    credentials: "same-origin",
+  });
+  if (response.status === 404) {
+    return null;
+  }
+  if (!response.ok) {
+    throw new Error(`${response.status} ${response.statusText}`);
+  }
+  return response.json();
+};
+
 /** Registers a board, or renames it when a name is given. */
 export const saveBoard = async (id: string, key: string, name?: string) => {
   await request("PUT", `/api/boards/${id}`, {
@@ -101,6 +134,11 @@ export const deleteFolder = async (id: string) => {
   await request("DELETE", `/api/folders/${id}`);
 };
 
+/** Sets what everybody but the author and the admins may do in a folder. */
+export const setFolderAccess = async (id: string, access: FolderAccess) => {
+  await request("PUT", `/api/folders/${id}/access`, { access });
+};
+
 /** Puts a board in a folder, or in none when `folder` is empty. */
 export const moveBoard = async (id: string, folder: string) => {
   await request("PUT", `/api/boards/${id}/folder`, { folder });
@@ -114,6 +152,8 @@ export type TrashedBoard = {
   createdBy: string;
   deletedBy: string;
   deletedAt: string;
+  /** A board returns to its folder, so it takes the right to change that. */
+  canRestore: boolean;
   /** Only the board's author or an organisation admin may delete it for good. */
   canPurge: boolean;
 };
@@ -235,7 +275,10 @@ export const openBoard = async (
     const deadline = Date.now() + 15000;
     while (Date.now() < deadline) {
       await new Promise((resolve) => setTimeout(resolve, 100));
-      if (collabAPI.isCollaborating() && !excalidrawAPI.getAppState().isLoading) {
+      if (
+        collabAPI.isCollaborating() &&
+        !excalidrawAPI.getAppState().isLoading
+      ) {
         // The history entry is committed after the render that shows the
         // scene, so give it a moment before clearing.
         await new Promise((resolve) => setTimeout(resolve, 300));

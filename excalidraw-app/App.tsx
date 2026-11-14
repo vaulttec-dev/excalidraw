@@ -134,6 +134,11 @@ import DebugCanvas, {
   loadSavedDebugState,
 } from "./components/DebugCanvas";
 import { useSimulatedCollaborators } from "./debugCollaborators";
+import {
+  ReadOnlyBadge,
+  boardReadOnlyAtom,
+  refreshBoardAccess,
+} from "./selfhost/access";
 import { SIDEBAR_DOCK_MIN_WIDTH, boardsSidebarState } from "./selfhost/sidebar";
 import { fitBoard } from "./selfhost/viewport";
 import { ExcalidrawPlusIframeExport } from "./ExcalidrawPlusIframeExport";
@@ -418,6 +423,29 @@ const ExcalidrawWrapper = () => {
   });
   const collabError = useAtomValue(collabErrorIndicatorAtom);
   const userToFollow = useAtomValue(userToFollowAtom);
+  const boardReadOnly = useAtomValue(boardReadOnlyAtom);
+
+  // Whether the open board may be changed is asked when it opens, and again
+  // when the tab comes back: the folder's author may have changed its access
+  // meanwhile.
+  useEffect(() => {
+    refreshBoardAccess();
+    let last = Date.now();
+    const recheck = () => {
+      if (document.visibilityState === "visible" && Date.now() - last > 5000) {
+        last = Date.now();
+        refreshBoardAccess();
+      }
+    };
+    window.addEventListener("hashchange", refreshBoardAccess);
+    window.addEventListener("focus", recheck);
+    document.addEventListener("visibilitychange", recheck);
+    return () => {
+      window.removeEventListener("hashchange", refreshBoardAccess);
+      window.removeEventListener("focus", recheck);
+      document.removeEventListener("visibilitychange", recheck);
+    };
+  }, []);
 
   const viewportStatusFrame = useMemo(
     () =>
@@ -932,6 +960,9 @@ const ExcalidrawWrapper = () => {
         onExport={onExport}
         initialData={initialStatePromiseRef.current.promise}
         onInitialize={fitBoard}
+        // Set only to force view mode on a board in a view-only folder; left
+        // unset otherwise, so editors keep their own view-mode toggle.
+        viewModeEnabled={boardReadOnly || undefined}
         isCollaborating={isCollaborating}
         onPointerUpdate={collabAPI?.onPointerUpdate}
         UIOptions={{
@@ -957,6 +988,7 @@ const ExcalidrawWrapper = () => {
 
           return (
             <div className="excalidraw-ui-top-right">
+              <ReadOnlyBadge />
               {collabError.message && <CollabError collabError={collabError} />}
               <LiveCollaborationTrigger
                 isCollaborating={isCollaborating}
