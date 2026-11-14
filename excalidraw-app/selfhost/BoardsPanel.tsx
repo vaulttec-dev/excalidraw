@@ -27,6 +27,8 @@ import {
   fetchFolders,
   fetchTrash,
   purgeFromTrash,
+  emptyTrash,
+  fetchAccount,
   fetchVersions,
   generateRoom,
   moveBoard,
@@ -239,11 +241,39 @@ const Trash = ({
 }) => {
   const [open, setOpen] = useState(false);
   const [items, setItems] = useState<TrashedBoard[] | null>(null);
+  // Only an admin deletes for good; nothing leaves the trash by itself.
+  const [admin, setAdmin] = useState(false);
+
+  useEffect(() => {
+    fetchAccount().then((account) => setAdmin(!!account?.admin));
+  }, []);
 
   const load = useCallback(
     () => fetchTrash().then(setItems, (err) => onError(err.message)),
     [onError],
   );
+
+  const purgeAll = async () => {
+    try {
+      const all = items ?? (await fetchTrash());
+      if (all.length === 0) {
+        setItems(all);
+        window.alert("Кошик порожній.");
+        return;
+      }
+      if (
+        !window.confirm(
+          `Видалити назавжди всі дошки з кошика (${all.length})? Разом з усіма версіями — відновити вже не вийде.`,
+        )
+      ) {
+        return;
+      }
+      await emptyTrash();
+      await load();
+    } catch (err: any) {
+      onError(err.message);
+    }
+  };
 
   useEffect(() => {
     if (open) {
@@ -281,13 +311,26 @@ const Trash = ({
 
   return (
     <div className="selfhost-boards__trash">
-      <button
-        type="button"
-        className="selfhost-boards__trash-toggle"
-        onClick={() => setOpen(!open)}
-      >
-        {open ? "▾" : "▸"} Кошик
-      </button>
+      <div className="selfhost-boards__trash-head">
+        <button
+          type="button"
+          className="selfhost-boards__trash-toggle"
+          onClick={() => setOpen(!open)}
+        >
+          {open ? "▾" : "▸"} Кошик
+        </button>
+        {admin && (
+          <button
+            type="button"
+            className="selfhost-boards__danger selfhost-boards__trash-empty"
+            title="Видалити остаточно всі"
+            aria-label="Видалити остаточно всі"
+            onClick={purgeAll}
+          >
+            {TrashIcon}
+          </button>
+        )}
+      </div>
       {open && items !== null && items.length === 0 && (
         <div className="selfhost-boards__versions-empty">Кошик порожній.</div>
       )}

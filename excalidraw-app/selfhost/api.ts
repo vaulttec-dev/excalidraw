@@ -62,6 +62,8 @@ export type Account = {
   login: string;
   name: string;
   avatarUrl: string;
+  /** An organisation admin, who alone deletes boards for good. */
+  admin: boolean;
 };
 
 export const BOARDS_TAB = "boards";
@@ -196,9 +198,14 @@ export const restoreFromTrash = async (id: string): Promise<Board> => {
   return response.json();
 };
 
-/** Deletes a board in the trash for good, versions included. */
+/** Deletes a board in the trash for good, versions included. Admins only. */
 export const purgeFromTrash = async (id: string) => {
   await request("DELETE", `/api/boards/trash/${id}`);
+};
+
+/** Deletes every board in the trash for good. Admins only. */
+export const emptyTrash = async () => {
+  await request("DELETE", "/api/boards/trash");
 };
 
 /** Moves a board to the trash, from where it can be restored. */
