@@ -12,8 +12,9 @@ const DOCKED_KEY = "excalidraw-self-host-sidebar-docked";
 
 /**
  * The narrowest editor the board list stays pinned in. Upstream's 1229px
- * left the list unpinned in a window on half of a 1920px screen; at this
- * width the board keeps about 600px beside it.
+ * left the list unpinned in a window on half of a 1920px screen. Below this
+ * width the pinned list would cover the end of the toolbar, which reaches
+ * about 600px from the left edge.
  */
 export const SIDEBAR_DOCK_MIN_WIDTH = 900;
 
@@ -34,18 +35,24 @@ const isDocked = () => {
 /**
  * The sidebar state a board opens with. The board list is pinned by default,
  * and while pinned it stays open across reloads and board switches, which
- * upstream does not do for collaboration rooms.
+ * upstream does not do for collaboration rooms. In a window too narrow to pin
+ * it, the list still opens with the page, over the board, until a click on
+ * the board closes it.
  */
 export const boardsSidebarState = (
   current: AppState["openSidebar"],
+  pageLoad: boolean,
 ): Pick<AppState, "defaultSidebarDockedPreference" | "openSidebar"> => {
-  const docked = isDocked();
-  // Too narrow to dock: the sidebar would cover the board.
-  if (!docked || window.innerWidth <= SIDEBAR_DOCK_MIN_WIDTH) {
-    return { defaultSidebarDockedPreference: docked, openSidebar: current };
+  if (!isDocked()) {
+    return { defaultSidebarDockedPreference: false, openSidebar: current };
   }
+  const fits = window.innerWidth > SIDEBAR_DOCK_MIN_WIDTH;
   return {
     defaultSidebarDockedPreference: true,
-    openSidebar: current ?? { name: DEFAULT_SIDEBAR.name, tab: BOARDS_TAB },
+    openSidebar:
+      current ??
+      (fits || pageLoad
+        ? { name: DEFAULT_SIDEBAR.name, tab: BOARDS_TAB }
+        : null),
   };
 };
