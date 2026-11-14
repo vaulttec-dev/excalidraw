@@ -88,10 +88,10 @@ import {
   saveUsernameToLocalStorage,
 } from "../data/localStorage";
 import { resetBrowserStateVersions } from "../data/tabSync";
+import { githubAvatarUrl, onePerPerson } from "../selfhost/identity";
 
 import { collabErrorIndicatorAtom } from "./CollabError";
 import Portal from "./Portal";
-import { githubAvatarUrl, onePerPerson } from "../selfhost/identity";
 
 import type {
   SocketUpdateDataSource,
@@ -482,6 +482,19 @@ class Collab extends PureComponent<CollabProps, CollabState> {
 
   private fallbackInitializationHandler: null | (() => any) = null;
 
+  // Clears the scene for the board being opened. The board list stays as it
+  // is: a plain reset closes it until the board has loaded, while the toolbar
+  // stays put.
+  private resetSceneKeepingBoardList = () => {
+    const { openSidebar, defaultSidebarDockedPreference } =
+      this.excalidrawAPI.getAppState();
+    this.excalidrawAPI.resetScene();
+    this.excalidrawAPI.updateScene({
+      appState: { openSidebar, defaultSidebarDockedPreference },
+      captureUpdate: CaptureUpdateAction.NEVER,
+    });
+  };
+
   startCollaboration = async (
     existingRoomLinkData: null | { roomId: string; roomKey: string },
   ) => {
@@ -551,7 +564,7 @@ class Collab extends PureComponent<CollabProps, CollabState> {
 
     if (existingRoomLinkData) {
       // when joining existing room, don't merge it with current scene data
-      this.excalidrawAPI.resetScene();
+      this.resetSceneKeepingBoardList();
     } else {
       const elements = this.excalidrawAPI.getSceneElements().map((element) => {
         if (isImageElement(element) && element.status === "saved") {
@@ -732,7 +745,7 @@ class Collab extends PureComponent<CollabProps, CollabState> {
       );
     }
     if (fetchScene && roomLinkData && this.portal.socket) {
-      this.excalidrawAPI.resetScene();
+      this.resetSceneKeepingBoardList();
 
       try {
         const elements = await loadFromFirebase(

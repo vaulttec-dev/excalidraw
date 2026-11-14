@@ -211,8 +211,6 @@ const shareableLinkConfirmDialog = {
 const initializeScene = async (opts: {
   collabAPI: CollabAPI | null;
   excalidrawAPI: ExcalidrawImperativeAPI;
-  // The page is loading, as opposed to switching to another board.
-  pageLoad?: boolean;
 }): Promise<
   { scene: ExcalidrawInitialDataState | null } & (
     | { isExternalScene: true; id: string; key: string }
@@ -350,10 +348,7 @@ const initializeScene = async (opts: {
           // Not the zoom left over from the last board: an empty board opens
           // at 100%, one with content is fitted to the screen (fitBoard).
           zoom: { value: getNormalizedZoom(1) },
-          ...boardsSidebarState(
-            excalidrawAPI.getAppState().openSidebar,
-            !!opts.pageLoad,
-          ),
+          ...boardsSidebarState(excalidrawAPI.getAppState().openSidebar, false),
         },
         elements: reconcileElements(
           scene?.elements || [],
@@ -573,12 +568,15 @@ const ExcalidrawWrapper = () => {
       return;
     }
 
-    initializeScene({ collabAPI, excalidrawAPI, pageLoad: true }).then(
-      async (data) => {
-        loadImages(data, /* isInitialLoad */ true);
-        initialStatePromiseRef.current.promise.resolve(data.scene);
-      },
-    );
+    // The board list opens with the editor, as the toolbar does, rather than
+    // once the board has loaded; the editor keeps a sidebar opened before
+    // its initial scene arrives.
+    excalidrawAPI.updateScene({ appState: boardsSidebarState(null, true) });
+
+    initializeScene({ collabAPI, excalidrawAPI }).then(async (data) => {
+      loadImages(data, /* isInitialLoad */ true);
+      initialStatePromiseRef.current.promise.resolve(data.scene);
+    });
 
     const onHashChange = async (event: HashChangeEvent) => {
       event.preventDefault();
