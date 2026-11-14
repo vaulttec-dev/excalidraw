@@ -33,25 +33,23 @@ const isDocked = () => {
 };
 
 /**
- * The sidebar state a board opens with. The board list is pinned by default,
- * and while pinned it stays open across reloads and board switches, which
- * upstream does not do for collaboration rooms. In a window too narrow to pin
- * it, the list still opens with the page, over the board, until a click on
- * the board closes it.
+ * The sidebar state a board opens with. The board list opens with the page
+ * and is pinned by default. While pinned, in a window wide enough for it, it
+ * stays open across reloads and board switches, which upstream does not do
+ * for collaboration rooms. Unpinned, or in a narrower window, it opens over
+ * the board until a click on the board closes it.
  */
 export const boardsSidebarState = (
   current: AppState["openSidebar"],
   pageLoad: boolean,
 ): Pick<AppState, "defaultSidebarDockedPreference" | "openSidebar"> => {
-  if (!isDocked()) {
-    return { defaultSidebarDockedPreference: false, openSidebar: current };
-  }
-  const fits = window.innerWidth > SIDEBAR_DOCK_MIN_WIDTH;
+  const docked = isDocked();
+  const pinned = docked && window.innerWidth > SIDEBAR_DOCK_MIN_WIDTH;
   return {
-    defaultSidebarDockedPreference: true,
+    defaultSidebarDockedPreference: docked,
     openSidebar:
       current ??
-      (fits || pageLoad
+      (pinned || pageLoad
         ? { name: DEFAULT_SIDEBAR.name, tab: BOARDS_TAB }
         : null),
   };
